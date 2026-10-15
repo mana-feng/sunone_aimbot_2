@@ -13,6 +13,7 @@
 #include <atomic>
 #include <mutex>
 
+#include "overlay/i18n_imgui.h"
 #include "imgui/imgui.h"
 #include "sunone_aimbot_2.h"
 #include "overlay.h"
@@ -63,7 +64,7 @@ void draw_depth()
 #ifndef USE_CUDA
     if (OverlayUI::BeginSection("Depth", "depth_section_unavailable"))
     {
-        ImGui::TextUnformatted("Depth requires a CUDA build.");
+        OverlayI18n::TextUnformatted("Depth requires a CUDA build.");
         OverlayUI::EndSection();
     }
     return;
@@ -104,7 +105,7 @@ void draw_depth()
     {
         {
             const auto row = OverlayUI::BeginSettingRow("Enable Depth Inference");
-            if (ImGui::Checkbox("##enable_depth_inference", &config.depth_inference_enabled))
+            if (OverlayI18n::Checkbox("##enable_depth_inference", &config.depth_inference_enabled))
             {
                 OverlayConfig_MarkDirty();
                 if (!config.depth_inference_enabled)
@@ -139,7 +140,7 @@ void draw_depth()
             }
 
             const auto row = OverlayUI::BeginSettingRow("Depth model");
-            if (ImGui::Combo("##depth_model", &currentModelIndex, modelItems.data(), static_cast<int>(modelItems.size())))
+            if (OverlayI18n::Combo("##depth_model", &currentModelIndex, modelItems.data(), static_cast<int>(modelItems.size())))
             {
                 if (config.depth_model_path != availableDepthModels[currentModelIndex])
                 {
@@ -160,7 +161,7 @@ void draw_depth()
         }
         {
             const auto row = OverlayUI::BeginSettingRow("Load depth model");
-            if (ImGui::Button("Load", ImVec2(row.controlWidth, 0.0f)))
+            if (OverlayI18n::Button("Load", ImVec2(row.controlWidth, 0.0f)))
             {
                 if (config.depth_model_path != selectedModel)
                 {
@@ -186,7 +187,7 @@ void draw_depth()
         }
         {
             const auto row = OverlayUI::BeginSettingRow("Export depth engine");
-            if (ImGui::Button("Export", ImVec2(row.controlWidth, 0.0f)))
+            if (OverlayI18n::Button("Export", ImVec2(row.controlWidth, 0.0f)))
             {
                 if (!depthExportRunning.load())
                 {
@@ -277,7 +278,7 @@ void draw_depth()
     {
         {
             const auto row = OverlayUI::BeginSettingRow("Depth FPS");
-            if (ImGui::SliderInt("##depth_fps", &config.depth_fps, 0, 120))
+            if (OverlayI18n::SliderInt("##depth_fps", &config.depth_fps, 0, 120))
             {
                 OverlayConfig_MarkDirty();
             }
@@ -286,7 +287,7 @@ void draw_depth()
 
         {
             const auto row = OverlayUI::BeginSettingRow("Depth Mask FPS");
-            if (ImGui::SliderInt("##depth_mask_fps", &config.depth_mask_fps, 1, 30))
+            if (OverlayI18n::SliderInt("##depth_mask_fps", &config.depth_mask_fps, 1, 30))
             {
                 OverlayConfig_MarkDirty();
             }
@@ -299,7 +300,7 @@ void draw_depth()
     {
         {
             const auto row = OverlayUI::BeginSettingRow("Enable Depth Mask");
-            if (ImGui::Checkbox("##enable_depth_mask", &config.depth_mask_enabled))
+            if (OverlayI18n::Checkbox("##enable_depth_mask", &config.depth_mask_enabled))
             {
                 OverlayConfig_MarkDirty();
             }
@@ -308,7 +309,7 @@ void draw_depth()
 
         {
             const auto row = OverlayUI::BeginSettingRow("Depth Mask Near %");
-            if (ImGui::SliderInt("##depth_mask_near_percent", &config.depth_mask_near_percent, 1, 100))
+            if (OverlayI18n::SliderInt("##depth_mask_near_percent", &config.depth_mask_near_percent, 1, 100))
             {
                 OverlayConfig_MarkDirty();
             }
@@ -317,7 +318,7 @@ void draw_depth()
 
         {
             const auto row = OverlayUI::BeginSettingRow("Depth Mask Expand (px)");
-            if (ImGui::SliderInt("##depth_mask_expand", &config.depth_mask_expand, 0, 128))
+            if (OverlayI18n::SliderInt("##depth_mask_expand", &config.depth_mask_expand, 0, 128))
             {
                 OverlayConfig_MarkDirty();
             }
@@ -326,7 +327,7 @@ void draw_depth()
 
         {
             const auto row = OverlayUI::BeginSettingRow("Depth Mask Hold Frames");
-            if (ImGui::SliderInt("##depth_mask_hold_frames", &config.depth_mask_hold_frames, 0, 120))
+            if (OverlayI18n::SliderInt("##depth_mask_hold_frames", &config.depth_mask_hold_frames, 0, 120))
             {
                 OverlayConfig_MarkDirty();
             }
@@ -335,7 +336,7 @@ void draw_depth()
 
         {
             const auto row = OverlayUI::BeginSettingRow("Depth Mask Alpha");
-            if (ImGui::SliderInt("##depth_mask_alpha", &config.depth_mask_alpha, 0, 255))
+            if (OverlayI18n::SliderInt("##depth_mask_alpha", &config.depth_mask_alpha, 0, 255))
             {
                 OverlayConfig_MarkDirty();
             }
@@ -348,7 +349,7 @@ void draw_depth()
 
         {
             const auto row = OverlayUI::BeginSettingRow("Depth Mask Invert");
-            if (ImGui::Checkbox("##depth_mask_invert", &config.depth_mask_invert))
+            if (OverlayI18n::Checkbox("##depth_mask_invert", &config.depth_mask_invert))
             {
                 OverlayConfig_MarkDirty();
             }
@@ -357,7 +358,7 @@ void draw_depth()
 
         {
             const auto row = OverlayUI::BeginSettingRow("Depth Debug Overlay (Game)");
-            if (ImGui::Checkbox("##depth_debug_overlay_game", &config.depth_debug_overlay_enabled))
+            if (OverlayI18n::Checkbox("##depth_debug_overlay_game", &config.depth_debug_overlay_enabled))
             {
                 OverlayConfig_MarkDirty();
             }
@@ -367,7 +368,7 @@ void draw_depth()
         int colormapIndex = config.depth_colormap;
         {
             const auto row = OverlayUI::BeginSettingRow("Depth colormap");
-            if (ImGui::Combo("##depth_colormap", &colormapIndex, kDepthColormapNames, IM_ARRAYSIZE(kDepthColormapNames)))
+            if (OverlayI18n::Combo("##depth_colormap", &colormapIndex, kDepthColormapNames, IM_ARRAYSIZE(kDepthColormapNames)))
             {
                 config.depth_colormap = colormapIndex;
                 OverlayConfig_MarkDirty();
@@ -380,7 +381,7 @@ void draw_depth()
 
     if (OverlayUI::BeginSection("Depth Status", "depth_section_status"))
     {
-        ImGui::Text("Status: %s", depthStatus.c_str());
+        OverlayI18n::Text("Status: %s", depthStatus.c_str());
 
         if (config.depth_inference_enabled && config.depth_mask_enabled)
         {
@@ -390,27 +391,27 @@ void draw_depth()
             const auto frameSize = depthMask.lastFrameSize();
 
             ImGui::Separator();
-            ImGui::Text("Mask runtime: %s", state.model_ready ? "ready" : "not ready");
-            ImGui::Text("Mask model path: %s",
+            OverlayI18n::Text("Mask runtime: %s", state.model_ready ? "ready" : "not ready");
+            OverlayI18n::Text("Mask model path: %s",
                 state.last_model_path.empty() ? "(none)" : state.last_model_path.c_str());
             if (frameSize.first > 0 && frameSize.second > 0)
-                ImGui::Text("Last mask frame: %dx%d", frameSize.first, frameSize.second);
+                OverlayI18n::Text("Last mask frame: %dx%d", frameSize.first, frameSize.second);
 
             if (!lastErr.empty())
-                ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "Mask error: %s", lastErr.c_str());
+                OverlayI18n::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), "Mask error: %s", lastErr.c_str());
         }
         else if (config.depth_inference_enabled)
         {
             ImGui::Separator();
-            ImGui::TextUnformatted("Depth mask is disabled.");
+            OverlayI18n::TextUnformatted("Depth mask is disabled.");
         }
         else
         {
             ImGui::Separator();
-            ImGui::TextUnformatted("Depth inference is disabled.");
+            OverlayI18n::TextUnformatted("Depth inference is disabled.");
         }
 
-        ImGui::TextUnformatted("Depth preview appears in game overlay when debug overlay is enabled.");
+        OverlayI18n::TextUnformatted("Depth preview appears in game overlay when debug overlay is enabled.");
         OverlayUI::EndSection();
     }
 #endif

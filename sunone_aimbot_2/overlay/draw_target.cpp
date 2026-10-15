@@ -4,6 +4,7 @@
 #include <Windows.h>
 
 #include "d3d11.h"
+#include "overlay/i18n_imgui.h"
 #include "imgui/imgui.h"
 
 #include <cmath>
@@ -43,8 +44,8 @@ void draw_target()
 
     if (OverlayUI::BeginSection("Offsets", "target_section_offsets"))
     {
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Arrow keys: Adjust body offset");
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Shift+Arrow keys: Adjust head offset");
+        OverlayI18n::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Arrow keys: Adjust body offset");
+        OverlayI18n::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Shift+Arrow keys: Adjust head offset");
 
         OverlayUI::SliderFloatRow("Approximate Body Y Offset", &config.body_y_offset, 0.0f, 1.0f, "%.2f");
         OverlayUI::SliderFloatRow("Approximate Head Y Offset", &config.head_y_offset, 0.0f, 1.0f, "%.2f");
@@ -81,9 +82,9 @@ void draw_target()
         }
         else
         {
-            ImGui::Text("Image not found!");
+            OverlayI18n::Text("Image not found!");
         }
-        ImGui::Text("Note: There is a different value for each game, as the sizes of the player models may vary.");
+        OverlayI18n::Text("Note: There is a different value for each game, as the sizes of the player models may vary.");
         OverlayUI::EndSection();
     }
 
@@ -119,10 +120,10 @@ void draw_tracker()
     {
         changed |= OverlayUI::CheckboxRow("Enable Tracker", &config.tracker_enabled);
         changed |= OverlayUI::CheckboxRow("Show Target Table", &config.tracker_overlay_table_enabled);
-        ImGui::Text("Mode: Simple Lock");
-        ImGui::Text("Runtime: %s", config.tracker_enabled ? "Tracker" : "Nearest Target");
-        ImGui::Text("Locked Track ID: %d", lockedTrackId);
-        ImGui::Text("Active Tracks: %d", static_cast<int>(tracks.size()));
+        OverlayI18n::Text("Mode: Simple Lock");
+        OverlayI18n::Text("Runtime: %s", config.tracker_enabled ? "Tracker" : "Nearest Target");
+        OverlayI18n::Text("Locked Track ID: %d", lockedTrackId);
+        OverlayI18n::Text("Active Tracks: %d", static_cast<int>(tracks.size()));
         OverlayUI::EndSection();
     }
 
@@ -130,17 +131,17 @@ void draw_tracker()
     {
         if (tracks.empty())
         {
-            ImGui::TextDisabled("No active tracks");
+            OverlayI18n::TextDisabled("No active tracks");
         }
         else if (ImGui::BeginTable("tracker_tracks_table", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg))
         {
-            ImGui::TableSetupColumn("ID");
-            ImGui::TableSetupColumn("Class");
-            ImGui::TableSetupColumn("Locked");
-            ImGui::TableSetupColumn("Observed");
-            ImGui::TableSetupColumn("Missed");
-            ImGui::TableSetupColumn("Pivot");
-            ImGui::TableSetupColumn("Speed");
+            OverlayI18n::TableSetupColumn("ID");
+            OverlayI18n::TableSetupColumn("Class");
+            OverlayI18n::TableSetupColumn("Locked");
+            OverlayI18n::TableSetupColumn("Observed");
+            OverlayI18n::TableSetupColumn("Missed");
+            OverlayI18n::TableSetupColumn("Pivot");
+            OverlayI18n::TableSetupColumn("Speed");
             ImGui::TableHeadersRow();
 
             for (const auto& track : tracks)
@@ -149,19 +150,19 @@ void draw_tracker()
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("%d", track.trackId);
+                OverlayI18n::Text("%d", track.trackId);
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%d", track.classId);
+                OverlayI18n::Text("%d", track.classId);
                 ImGui::TableSetColumnIndex(2);
-                ImGui::Text("%s", track.isLocked ? "Yes" : "No");
+                OverlayI18n::Text("%s", track.isLocked ? "Yes" : "No");
                 ImGui::TableSetColumnIndex(3);
-                ImGui::Text("%s", track.observedThisFrame ? "Yes" : "No");
+                OverlayI18n::Text("%s", track.observedThisFrame ? "Yes" : "No");
                 ImGui::TableSetColumnIndex(4);
-                ImGui::Text("%d", track.missedFrames);
+                OverlayI18n::Text("%d", track.missedFrames);
                 ImGui::TableSetColumnIndex(5);
-                ImGui::Text("%.0f, %.0f", track.pivotX, track.pivotY);
+                OverlayI18n::Text("%.0f, %.0f", track.pivotX, track.pivotY);
                 ImGui::TableSetColumnIndex(6);
-                ImGui::Text("%.0f", speed);
+                OverlayI18n::Text("%.0f", speed);
             }
 
             ImGui::EndTable();

@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <string>
 
+#include "overlay/i18n_imgui.h"
 #include "imgui/imgui.h"
 #include "sunone_aimbot_2.h"
 #include "overlay.h"
@@ -108,32 +109,32 @@ void draw_stats()
 
     if (OverlayUI::BeginSection("Time Breakdown", "stats_section_time_breakdown"))
     {
-        ImGui::PlotLines("Preprocess", preprocess_times, IM_ARRAYSIZE(preprocess_times), index_inf, nullptr, 0.0f, 20.0f, ImVec2(0, 40));
-        ImGui::SameLine(); ImGui::Text("%.2f | Avg: %.2f", current_preprocess, avg_preprocess_cached);
+        OverlayI18n::PlotLines("Preprocess", preprocess_times, IM_ARRAYSIZE(preprocess_times), index_inf, nullptr, 0.0f, 20.0f, ImVec2(0, 40));
+        ImGui::SameLine(); OverlayI18n::Text("%.2f | Avg: %.2f", current_preprocess, avg_preprocess_cached);
 
-        ImGui::PlotLines("Inference", inference_times, IM_ARRAYSIZE(inference_times), index_inf, nullptr, 0.0f, 20.0f, ImVec2(0, 40));
+        OverlayI18n::PlotLines("Inference", inference_times, IM_ARRAYSIZE(inference_times), index_inf, nullptr, 0.0f, 20.0f, ImVec2(0, 40));
         ImGui::SameLine();
 
-        ImGui::Text("%.2f | Avg:", current_inference);
+        OverlayI18n::Text("%.2f | Avg:", current_inference);
         ImGui::SameLine();
 
         const bool inf_slow = (avg_inference_cached > 20.0f);
         if (inf_slow)
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.2f, 0.2f, 1.0f));
 
-        ImGui::Text("%.2f", avg_inference_cached);
+        OverlayI18n::Text("%.2f", avg_inference_cached);
 
         if (inf_slow)
             ImGui::PopStyleColor();
 
-        ImGui::PlotLines("Copy", copy_times, IM_ARRAYSIZE(copy_times), index_inf, nullptr, 0.0f, 10.0f, ImVec2(0, 40));
-        ImGui::SameLine(); ImGui::Text("%.2f | Avg: %.2f", current_copy, avg_copy_cached);
+        OverlayI18n::PlotLines("Copy", copy_times, IM_ARRAYSIZE(copy_times), index_inf, nullptr, 0.0f, 10.0f, ImVec2(0, 40));
+        ImGui::SameLine(); OverlayI18n::Text("%.2f | Avg: %.2f", current_copy, avg_copy_cached);
 
-        ImGui::PlotLines("Postprocess", postprocess_times, IM_ARRAYSIZE(postprocess_times), index_inf, nullptr, 0.0f, 10.0f, ImVec2(0, 40));
-        ImGui::SameLine(); ImGui::Text("%.2f | Avg: %.2f", current_post, avg_post_cached);
+        OverlayI18n::PlotLines("Postprocess", postprocess_times, IM_ARRAYSIZE(postprocess_times), index_inf, nullptr, 0.0f, 10.0f, ImVec2(0, 40));
+        ImGui::SameLine(); OverlayI18n::Text("%.2f | Avg: %.2f", current_post, avg_post_cached);
 
-        ImGui::PlotLines("NMS", nms_times, IM_ARRAYSIZE(nms_times), index_inf, nullptr, 0.0f, 5.0f, ImVec2(0, 40));
-        ImGui::SameLine(); ImGui::Text("%.2f | Avg: %.2f", current_nms, avg_nms_cached);
+        OverlayI18n::PlotLines("NMS", nms_times, IM_ARRAYSIZE(nms_times), index_inf, nullptr, 0.0f, 5.0f, ImVec2(0, 40));
+        ImGui::SameLine(); OverlayI18n::Text("%.2f | Avg: %.2f", current_nms, avg_nms_cached);
 
         OverlayUI::EndSection();
     }
@@ -143,17 +144,17 @@ void draw_stats()
         const float fpsPlotMax = (captureUsesMonitorRefresh && cachedMonitorRefreshHz > 1.0)
             ? static_cast<float>(cachedMonitorRefreshHz)
             : 360.0f;
-        ImGui::PlotLines("##fps_plot", capture_fps_vals, IM_ARRAYSIZE(capture_fps_vals), index_fps, nullptr, 0.0f, fpsPlotMax, ImVec2(0, 60));
+        OverlayI18n::PlotLines("##fps_plot", capture_fps_vals, IM_ARRAYSIZE(capture_fps_vals), index_fps, nullptr, 0.0f, fpsPlotMax, ImVec2(0, 60));
         ImGui::SameLine();
-        ImGui::Text("Now: %.1f | Avg: %.1f", current_fps, avg_fps_cached);
+        OverlayI18n::Text("Now: %.1f | Avg: %.1f", current_fps, avg_fps_cached);
         if (captureUsesMonitorRefresh && cachedMonitorRefreshHz > 1.0)
         {
             const float refreshHz = static_cast<float>(cachedMonitorRefreshHz);
             const float fpsLoad = std::clamp(avg_fps_cached / refreshHz, 0.0f, 1.0f);
             ImGui::Spacing();
-            ImGui::Text("Monitor load");
+            OverlayI18n::Text("Monitor load");
             ImGui::SameLine();
-            ImGui::TextDisabled("%.1f / %.1f Hz (%.0f%%)", avg_fps_cached, refreshHz, fpsLoad * 100.0f);
+            OverlayI18n::TextDisabled("%.1f / %.1f Hz (%.0f%%)", avg_fps_cached, refreshHz, fpsLoad * 100.0f);
             ImGui::ProgressBar(fpsLoad, ImVec2(-1.0f, 18.0f), "");
         }
         OverlayUI::EndSection();
@@ -214,41 +215,41 @@ void draw_stats()
 
     if (OverlayUI::BeginSection("Capture Details", "stats_section_capture_details"))
     {
-        ImGui::Text("Method: %s", config.capture_method.c_str());
-        ImGui::Text("Backend: %s", config.backend.c_str());
-        ImGui::TextWrapped("Source: %s", captureSource.c_str());
+        OverlayI18n::Text("Method: %s", config.capture_method.c_str());
+        OverlayI18n::Text("Backend: %s", config.backend.c_str());
+        OverlayI18n::TextWrapped("Source: %s", captureSource.c_str());
 
         if (sourceWidth > 0 && sourceHeight > 0)
-            ImGui::Text("%s: %dx%d", sourceSizeLabel.c_str(), sourceWidth, sourceHeight);
+            OverlayI18n::Text("%s: %dx%d", sourceSizeLabel.c_str(), sourceWidth, sourceHeight);
         else
-            ImGui::TextDisabled("%s: n/a", sourceSizeLabel.c_str());
+            OverlayI18n::TextDisabled("%s: n/a", sourceSizeLabel.c_str());
 
         if (captureUsesMonitorRefresh)
         {
             if (cachedMonitorRefreshHz > 0.0)
-                ImGui::Text("Monitor refresh: %.2f Hz", cachedMonitorRefreshHz);
+                OverlayI18n::Text("Monitor refresh: %.2f Hz", cachedMonitorRefreshHz);
             else
-                ImGui::TextDisabled("Monitor refresh: n/a");
+                OverlayI18n::TextDisabled("Monitor refresh: n/a");
         }
 
         if (latestWidth > 0 && latestHeight > 0)
-            ImGui::Text("Latest frame: %dx%d", latestWidth, latestHeight);
+            OverlayI18n::Text("Latest frame: %dx%d", latestWidth, latestHeight);
         else
-            ImGui::TextDisabled("Latest frame: n/a");
+            OverlayI18n::TextDisabled("Latest frame: n/a");
 
-        ImGui::Text("Detection resolution: %d", config.detection_resolution);
+        OverlayI18n::Text("Detection resolution: %d", config.detection_resolution);
         if (captureFpsLimit > 0)
-            ImGui::Text("Capture FPS limit: %d", captureFpsLimit);
+            OverlayI18n::Text("Capture FPS limit: %d", captureFpsLimit);
         else
-            ImGui::Text("Capture FPS limit: unlimited");
+            OverlayI18n::Text("Capture FPS limit: unlimited");
 
         if (currentFrameTimeMs > 0.0f || avgFrameTimeMs > 0.0f)
-            ImGui::Text("Frame time: now %.2f ms | avg %.2f ms", currentFrameTimeMs, avgFrameTimeMs);
+            OverlayI18n::Text("Frame time: now %.2f ms | avg %.2f ms", currentFrameTimeMs, avgFrameTimeMs);
         else
-            ImGui::TextDisabled("Frame time: n/a");
+            OverlayI18n::TextDisabled("Frame time: n/a");
 
-        ImGui::Text("Frame queue depth: %d", static_cast<int>(queueDepth));
-        ImGui::Text("Circle FOV: %s", config.circle_fov_enabled ? "on" : "off");
+        OverlayI18n::Text("Frame queue depth: %d", static_cast<int>(queueDepth));
+        OverlayI18n::Text("Circle FOV: %s", config.circle_fov_enabled ? "on" : "off");
 
         static bool winrtStatsInitialized = false;
         static uint64_t lastWinrtPolls = 0;
@@ -318,10 +319,10 @@ void draw_stats()
             }
 
             ImGui::Separator();
-            ImGui::Text("WinRT frames: %.1f/s | pulled: %.1f/s", winrtReturnedRate, winrtDrainedRate);
-            ImGui::Text("WinRT empty polls: %.1f/s | polls: %.1f/s", winrtEmptyRate, winrtPollRate);
-            ImGui::Text("WinRT readback avg: %.3f ms | Map: %.3f ms", winrtReadbackAvgMs, winrtMapAvgMs);
-            ImGui::Text("WinRT memcpy avg: %.3f ms", winrtPixelCopyAvgMs);
+            OverlayI18n::Text("WinRT frames: %.1f/s | pulled: %.1f/s", winrtReturnedRate, winrtDrainedRate);
+            OverlayI18n::Text("WinRT empty polls: %.1f/s | polls: %.1f/s", winrtEmptyRate, winrtPollRate);
+            OverlayI18n::Text("WinRT readback avg: %.3f ms | Map: %.3f ms", winrtReadbackAvgMs, winrtMapAvgMs);
+            OverlayI18n::Text("WinRT memcpy avg: %.3f ms", winrtPixelCopyAvgMs);
         }
         else
         {
@@ -349,15 +350,15 @@ void draw_stats()
                 directCaptureStatus = "Active";
 
             ImGui::Separator();
-            ImGui::Text("CUDA Direct Capture: %s", config.capture_use_cuda ? "enabled" : "disabled");
-            ImGui::Text("Depth mask: %s", depthMaskEnabled ? "on" : "off");
-            ImGui::Text("Capture pipeline: %s", directCaptureActive ? "GPU direct path" : "CPU readback");
+            OverlayI18n::Text("CUDA Direct Capture: %s", config.capture_use_cuda ? "enabled" : "disabled");
+            OverlayI18n::Text("Depth mask: %s", depthMaskEnabled ? "on" : "off");
+            OverlayI18n::Text("Capture pipeline: %s", directCaptureActive ? "GPU direct path" : "CPU readback");
 
             if (directCaptureActive)
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.35f, 1.0f, 0.45f, 1.0f));
             else
                 ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.78f, 0.28f, 1.0f));
-            ImGui::TextWrapped("Direct capture status: %s", directCaptureStatus.c_str());
+            OverlayI18n::TextWrapped("Direct capture status: %s", directCaptureStatus.c_str());
             ImGui::PopStyleColor();
 
             static uint64_t lastGpuAttempts = 0;
@@ -440,12 +441,12 @@ void draw_stats()
                 lastGpuStatsTime = now;
             }
 
-            ImGui::Text("DDA submitted frames: %.1f/s | attempts: %.1f/s", gpuCapturedRate, gpuAttemptRate);
-            ImGui::Text("DDA present frames: %.1f/s | mouse-only: %.1f/s", gpuPresentRate, gpuMouseOnlyRate);
-            ImGui::Text("DDA metadata-only: %.1f/s | coalesced: %.1f/s", gpuMetadataOnlyRate, gpuCoalescedRate);
-            ImGui::Text("DDA GPU timeouts: %.1f/s | accumulated: %.1f/s", gpuTimeoutRate, gpuAccumulatedRate);
-            ImGui::Text("DDA GPU missed/coalesced: %.1f/s", gpuMissedRate);
-            ImGui::Text("DDA CPU fallback: %.1f/s | attempts: %.1f/s", cpuFallbackFrameRate, cpuFallbackAttemptRate);
+            OverlayI18n::Text("DDA submitted frames: %.1f/s | attempts: %.1f/s", gpuCapturedRate, gpuAttemptRate);
+            OverlayI18n::Text("DDA present frames: %.1f/s | mouse-only: %.1f/s", gpuPresentRate, gpuMouseOnlyRate);
+            OverlayI18n::Text("DDA metadata-only: %.1f/s | coalesced: %.1f/s", gpuMetadataOnlyRate, gpuCoalescedRate);
+            OverlayI18n::Text("DDA GPU timeouts: %.1f/s | accumulated: %.1f/s", gpuTimeoutRate, gpuAccumulatedRate);
+            OverlayI18n::Text("DDA GPU missed/coalesced: %.1f/s", gpuMissedRate);
+            OverlayI18n::Text("DDA CPU fallback: %.1f/s | attempts: %.1f/s", cpuFallbackFrameRate, cpuFallbackAttemptRate);
         }
 #endif
 

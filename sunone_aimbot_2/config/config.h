@@ -1,6 +1,7 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+#include "detector/class_roles.h"
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -139,7 +140,8 @@ public:
     int systemMemoryReserveMB;
 
     // Buttons
-    std::vector<std::string> button_targeting;
+    std::vector<std::string> button_targeting; // Enemy aiming; legacy key retained.
+    std::vector<std::string> button_targeting_friendly;
     std::vector<std::string> button_shoot;
     std::vector<std::string> button_zoom;
     std::vector<std::string> button_exit;
@@ -149,6 +151,7 @@ public:
     bool enable_arrows_settings;
 
     // Overlay
+    std::string ui_language = "en";
     int overlay_opacity;
     float overlay_ui_scale;
     bool overlay_exclude_from_capture;
@@ -231,6 +234,24 @@ public:
     // Classes
     int class_player;
     int class_head;
+    // Active model roles are loaded/saved in its sidecar, never shared across models.
+    std::vector<ModelClassRole> model_class_roles;
+    uint64_t model_class_revision = 0;
+    AimTeam aim_team = AimTeam::Enemy; // Transient hold state, not persisted.
+    uint64_t aim_team_revision = 0;
+    // Caller holds configMutex. Keep transient holds separate from unsaved role-editor drafts.
+    void setAimTeam(AimTeam team)
+    {
+        if (aim_team != team)
+        {
+            aim_team = team;
+            ++aim_team_revision;
+        }
+    }
+    TargetClassPolicy targetClassPolicy() const
+    {
+        return { model_class_roles, class_player, class_head, model_class_revision, aim_team, aim_team_revision };
+    }
 
     // Debug
     bool show_window;

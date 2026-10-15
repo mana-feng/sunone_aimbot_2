@@ -6,6 +6,7 @@
 #include <shellapi.h>
 #include <algorithm>
 
+#include "overlay/i18n_imgui.h"
 #include "imgui/imgui.h"
 #include <imgui_internal.h>
 
@@ -110,7 +111,7 @@ static void draw_mouse_page(MouseSettingsPage page)
         if (!predictionEnabled)
         {
             ImGui::EndDisabled();
-            ImGui::TextDisabled("Enable Prediction Interval (> 0) to edit this section.");
+            OverlayI18n::TextDisabled("Enable Prediction Interval (> 0) to edit this section.");
         }
 
         ImGui::Separator();
@@ -217,11 +218,11 @@ static void draw_mouse_page(MouseSettingsPage page)
 
         const auto& gp = config.currentProfile();
 
-        ImGui::Text("Current profile: %s", gp.name.c_str());
-        ImGui::Text("Sens: %.4f", gp.sens);
-        ImGui::Text("Yaw:  %.4f", gp.yaw);
-        ImGui::Text("Pitch: %.4f", gp.pitch);
-        ImGui::Text("FOV Scaled: %s", gp.fovScaled ? "true" : "false");
+        OverlayI18n::Text("Current profile: %s", gp.name.c_str());
+        OverlayI18n::Text("Sens: %.4f", gp.sens);
+        OverlayI18n::Text("Yaw:  %.4f", gp.yaw);
+        OverlayI18n::Text("Pitch: %.4f", gp.pitch);
+        OverlayI18n::Text("FOV Scaled: %s", gp.fovScaled ? "true" : "false");
 
         if (gp.name != "UNIFIED")
         {
@@ -269,9 +270,9 @@ static void draw_mouse_page(MouseSettingsPage page)
             const float buttonW = 96.0f;
             const float inputW = std::max(1.0f, row.controlWidth - buttonW - ImGui::GetStyle().ItemSpacing.x);
             ImGui::SetNextItemWidth(inputW);
-            ImGui::InputText("##value", new_profile_name, sizeof(new_profile_name));
+            OverlayI18n::InputText("##value", new_profile_name, sizeof(new_profile_name));
             ImGui::SameLine();
-            addProfile = ImGui::Button("Add", ImVec2(buttonW, 0.0f));
+            addProfile = OverlayI18n::Button("Add", ImVec2(buttonW, 0.0f));
             OverlayUI::EndSettingRow(row);
         }
         if (addProfile)
@@ -333,17 +334,17 @@ static void draw_mouse_page(MouseSettingsPage page)
             OverlayConfig_MarkDirty();
         }
 
-        ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Left/Right Arrow keys: Adjust recoil strength by 10");
+        OverlayI18n::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Left/Right Arrow keys: Adjust recoil strength by 10");
 
         if (config.easynorecoilstrength >= 100.0f)
         {
-            ImGui::TextColored(ImVec4(255, 255, 0, 255), "WARNING: High recoil strength may be detected.");
+            OverlayI18n::TextColored(ImVec4(255, 255, 0, 255), "WARNING: High recoil strength may be detected.");
         }
 
         if (!config.easynorecoil)
         {
             ImGui::EndDisabled();
-            ImGui::TextDisabled("Enable Easy No Recoil to edit settings.");
+            OverlayI18n::TextDisabled("Enable Easy No Recoil to edit settings.");
         }
 
         OverlayUI::EndSection();
@@ -363,7 +364,7 @@ static void draw_mouse_page(MouseSettingsPage page)
         if (!config.auto_shoot)
         {
             ImGui::EndDisabled();
-            ImGui::TextDisabled("Enable Auto Shoot to edit settings.");
+            OverlayI18n::TextDisabled("Enable Auto Shoot to edit settings.");
         }
 
         OverlayUI::EndSection();
@@ -414,7 +415,7 @@ static void draw_mouse_page(MouseSettingsPage page)
         if (!config.wind_mouse_enabled)
         {
             ImGui::EndDisabled();
-            ImGui::TextDisabled("Enable WindMouse to edit settings.");
+            OverlayI18n::TextDisabled("Enable WindMouse to edit settings.");
         }
 
         OverlayUI::EndSection();
@@ -460,11 +461,11 @@ static void draw_mouse_page(MouseSettingsPage page)
             {
                 if (arduinoSerial->isOpen())
                 {
-                    ImGui::TextColored(ImVec4(0, 255, 0, 255), config.input_method == "TEENSY41" ? "Teensy 4.1 connected" : "Arduino connected");
+                    OverlayI18n::TextColored(ImVec4(0, 255, 0, 255), config.input_method == "TEENSY41" ? "Teensy 4.1 connected" : "Arduino connected");
                 }
                 else
                 {
-                    ImGui::TextColored(ImVec4(255, 0, 0, 255), config.input_method == "TEENSY41" ? "Teensy 4.1 not connected" : "Arduino not connected");
+                    OverlayI18n::TextColored(ImVec4(255, 0, 0, 255), config.input_method == "TEENSY41" ? "Teensy 4.1 not connected" : "Arduino not connected");
                 }
             }
 
@@ -531,7 +532,7 @@ static void draw_mouse_page(MouseSettingsPage page)
 
             if (config.input_method == "TEENSY41")
             {
-                ImGui::TextDisabled("Uses the Teensy 4.1 serial mouse bridge protocol.");
+                OverlayI18n::TextDisabled("Uses the Teensy 4.1 serial mouse bridge protocol.");
             }
             else
             {
@@ -553,11 +554,11 @@ static void draw_mouse_page(MouseSettingsPage page)
             {
                 if (rp2350Serial->isOpen())
                 {
-                    ImGui::TextColored(ImVec4(0, 255, 0, 255), "RP2350 connected");
+                    OverlayI18n::TextColored(ImVec4(0, 255, 0, 255), "RP2350 connected");
                 }
                 else
                 {
-                    ImGui::TextColored(ImVec4(255, 0, 0, 255), "RP2350 not connected");
+                    OverlayI18n::TextColored(ImVec4(255, 0, 0, 255), "RP2350 not connected");
                 }
             }
 
@@ -638,18 +639,18 @@ static void draw_mouse_page(MouseSettingsPage page)
             if (ghub_version == "13.1.4")
             {
                 std::string ghub_version_label = "The correct version of Ghub is installed: " + ghub_version;
-                ImGui::Text(ghub_version_label.c_str());
+                OverlayI18n::Text("%s", ghub_version_label.c_str());
             }
             else
             {
-                ImGui::Text("The wrong version of Ghub is installed or the path to Ghub is not set by default.\nDefault system path: C:\\Program Files\\LGHUB");
+                OverlayI18n::Text("The wrong version of Ghub is installed or the path to Ghub is not set by default.\nDefault system path: C:\\Program Files\\LGHUB");
                 if (OverlayUI::ButtonRow("GHub", "Open GHub Docs", "ghub_docs"))
                 {
                     ShellExecute(0, 0, L"https://github.com/SunOner/sunone_aimbot_2/blob/main/docs/guides.md#g-hub-input-method", 0, 0, SW_SHOW);
                 }
             }
 
-            ImGui::TextColored(ImVec4(255, 0, 0, 255), "Use at your own risk, the method is detected in some games.");
+            OverlayI18n::TextColored(ImVec4(255, 0, 0, 255), "Use at your own risk, the method is detected in some games.");
         }
         else if (config.input_method == "TEENSY41_HID")
         {
@@ -661,11 +662,11 @@ static void draw_mouse_page(MouseSettingsPage page)
 
             if (teensy41Connected)
             {
-                ImGui::TextColored(ImVec4(0, 255, 0, 255), "Teensy 4.1 RawHID connected");
+                OverlayI18n::TextColored(ImVec4(0, 255, 0, 255), "Teensy 4.1 RawHID connected");
             }
             else
             {
-                ImGui::TextColored(ImVec4(255, 0, 0, 255), "Teensy 4.1 RawHID not connected");
+                OverlayI18n::TextColored(ImVec4(255, 0, 0, 255), "Teensy 4.1 RawHID not connected");
             }
 
             static char serial[64] = "";
@@ -735,19 +736,19 @@ static void draw_mouse_page(MouseSettingsPage page)
         {
             if (razerControl && razerControl->isOpen())
             {
-                ImGui::TextColored(ImVec4(0, 255, 0, 255), "Razer rzctl connected");
+                OverlayI18n::TextColored(ImVec4(0, 255, 0, 255), "Razer rzctl connected");
             }
             else
             {
-                ImGui::TextColored(ImVec4(255, 0, 0, 255), "Razer rzctl not connected");
+                OverlayI18n::TextColored(ImVec4(255, 0, 0, 255), "Razer rzctl not connected");
             }
-            ImGui::Text("Requires rzctl.dll next to ai.exe.");
-            ImGui::TextColored(ImVec4(255, 0, 0, 255), "Use at your own risk, the method is detected in some games.");
+            OverlayI18n::Text("Requires rzctl.dll next to ai.exe.");
+            OverlayI18n::TextColored(ImVec4(255, 0, 0, 255), "Use at your own risk, the method is detected in some games.");
         }
         else if (config.input_method == "WIN32")
         {
-            ImGui::TextColored(ImVec4(255, 255, 255, 255), "This is a standard mouse input method, it may not work in most games. Use GHUB, RAZER, ARDUINO, RP2350, TEENSY41, or TEENSY41_HID.");
-            ImGui::TextColored(ImVec4(255, 0, 0, 255), "Use at your own risk, the method is detected in some games.");
+            OverlayI18n::TextColored(ImVec4(255, 255, 255, 255), "This is a standard mouse input method, it may not work in most games. Use GHUB, RAZER, ARDUINO, RP2350, TEENSY41, or TEENSY41_HID.");
+            OverlayI18n::TextColored(ImVec4(255, 0, 0, 255), "Use at your own risk, the method is detected in some games.");
         }
         else if (config.input_method == "KMBOX_NET")
         {
@@ -799,11 +800,11 @@ static void draw_mouse_page(MouseSettingsPage page)
 
             if (kmboxNetConnected)
             {
-                ImGui::TextColored(ImVec4(0, 255, 0, 255), "kmboxNet connected");
+                OverlayI18n::TextColored(ImVec4(0, 255, 0, 255), "kmboxNet connected");
             }
             else
             {
-                ImGui::TextColored(ImVec4(255, 0, 0, 255), "kmboxNet not connected");
+                OverlayI18n::TextColored(ImVec4(255, 0, 0, 255), "kmboxNet not connected");
             }
 
             if (!kmboxNetConnected)
@@ -850,7 +851,7 @@ static void draw_mouse_page(MouseSettingsPage page)
             }
 
             OverlayUI::InputTextRow("PIDVID", pidvid, sizeof(pidvid));
-            ImGui::TextDisabled("Format: PPPPVVVV (one field)");
+            OverlayI18n::TextDisabled("Format: PPPPVVVV (one field)");
 
             if (OverlayUI::ButtonRow("kmboxA", "Save & Reconnect", "kmbox_a_save_reconnect"))
             {
@@ -862,11 +863,11 @@ static void draw_mouse_page(MouseSettingsPage page)
 
             if (kmboxASerial && kmboxASerial->isOpen())
             {
-                ImGui::TextColored(ImVec4(0, 255, 0, 255), "kmboxA connected");
+                OverlayI18n::TextColored(ImVec4(0, 255, 0, 255), "kmboxA connected");
             }
             else
             {
-                ImGui::TextColored(ImVec4(255, 0, 0, 255), "kmboxA not connected");
+                OverlayI18n::TextColored(ImVec4(255, 0, 0, 255), "kmboxA not connected");
             }
         }
         else if (config.input_method == "MAKCU")
@@ -937,11 +938,11 @@ static void draw_mouse_page(MouseSettingsPage page)
 
             if (makcuSerial && makcuSerial->isOpen())
             {
-                ImGui::TextColored(ImVec4(0, 255, 0, 255), "Makcu connected");
+                OverlayI18n::TextColored(ImVec4(0, 255, 0, 255), "Makcu connected");
             }
             else
             {
-                ImGui::TextColored(ImVec4(255, 0, 0, 255), "Makcu not connected");
+                OverlayI18n::TextColored(ImVec4(255, 0, 0, 255), "Makcu not connected");
             }
         }
 

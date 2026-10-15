@@ -10,9 +10,12 @@
 #include <mutex>
 #include <opencv2/opencv.hpp>
 
-#include "sunone_aimbot_2.h"
+
 #include "AimbotTarget.h"
 #include "config.h"
+
+extern Config config;
+extern std::mutex configMutex;
 
 AimbotTarget::AimbotTarget()
     : x(0), y(0), w(0), h(0), classId(0), pivotX(0.0), pivotY(0.0)
@@ -38,14 +41,12 @@ AimbotTarget* sortTargets(
     }
 
     cv::Point center(screenWidth / 2, screenHeight / 2);
-    int classHead = 1;
-    int classPlayer = 0;
+    TargetClassPolicy policy;
     float headOffset = 0.05f;
     float bodyOffset = 0.15f;
     {
         std::lock_guard<std::mutex> lock(configMutex);
-        classHead = config.class_head;
-        classPlayer = config.class_player;
+        policy = config.targetClassPolicy();
         headOffset = config.head_y_offset;
         bodyOffset = config.body_y_offset;
     }
@@ -61,7 +62,7 @@ AimbotTarget* sortTargets(
             if (boxes[i].width <= 0 || boxes[i].height <= 0)
                 continue;
 
-            if (classes[i] == classHead)
+            if (policy.head(classes[i]))
             {
                 int headOffsetY = static_cast<int>(boxes[i].height * headOffset);
                 cv::Point targetPoint(boxes[i].x + boxes[i].width / 2, boxes[i].y + headOffsetY);
@@ -84,10 +85,10 @@ AimbotTarget* sortTargets(
             if (boxes[i].width <= 0 || boxes[i].height <= 0)
                 continue;
 
-            if (disableHeadshot && classes[i] == classHead)
+            if (disableHeadshot && policy.head(classes[i]))
                 continue;
 
-            if (classes[i] == classPlayer)
+            if (policy.body(classes[i]))
             {
                 int offsetY = static_cast<int>(boxes[i].height * bodyOffset);
                 cv::Point targetPoint(boxes[i].x + boxes[i].width / 2, boxes[i].y + offsetY);
@@ -108,7 +109,7 @@ AimbotTarget* sortTargets(
     }
 
     int finalY = 0;
-    if (classes[nearestIdx] == classHead)
+    if (policy.head(classes[nearestIdx]))
     {
         int headOffsetY = static_cast<int>(boxes[nearestIdx].height * headOffset);
         finalY = boxes[nearestIdx].y + headOffsetY - boxes[nearestIdx].height / 2;
@@ -322,18 +323,23 @@ void MultiTargetTracker::update(
     }
     lastTrackerFrameTime_ = now;
 
-    int classPlayer = 0;
-    int classHead = 1;
+    TargetClassPolicy policy;
     float bodyOffset = 0.15f;
     float headOffset = 0.05f;
     {
         std::lock_guard<std::mutex> lock(configMutex);
-        classPlayer = config.class_player;
-        classHead = config.class_head;
+        policy = config.targetClassPolicy();
         bodyOffset = config.body_y_offset;
         headOffset = config.head_y_offset;
     }
 
+    if (!(activePolicy_ == policy) || activeDisableHeadshot_ != disableHeadshot)
+    {
+        reset(); // Do not retain identities/predictions after enemy/friendly or anatomy changes.
+        activePolicy_ = policy;
+        activeDisableHeadshot_ = disableHeadshot;
+        lastTrackerFrameTime_ = now;
+    }
     for (auto& t : tracks_)
         t.observedThisFrame = false;
 
@@ -346,12 +352,12 @@ void MultiTargetTracker::update(
         const int cls = classes[i];
         if (disableHeadshot)
         {
-            if (cls != classPlayer)
+            if (!policy.body(cls))
                 continue;
         }
         else
         {
-            if (cls != classPlayer && cls != classHead)
+            if (!policy.body(cls) && !policy.head(cls))
             {
                 continue;
             }
@@ -361,7 +367,7 @@ void MultiTargetTracker::update(
         if (b.width <= 0 || b.height <= 0)
             continue;
 
-        const double yOffset = (cls == classHead) ? headOffset : bodyOffset;
+        const double yOffset = (policy.head(cls)) ? headOffset : bodyOffset;
         DetectionCandidate d;
         d.box = cv::Rect2f(static_cast<float>(b.x), static_cast<float>(b.y), static_cast<float>(b.width), static_cast<float>(b.height));
         d.classId = cls;
@@ -378,7 +384,7 @@ void MultiTargetTracker::update(
         playerIdx.reserve(dets.size());
         for (size_t i = 0; i < dets.size(); ++i)
         {
-            if (dets[i].classId == classPlayer)
+            if (policy.body(dets[i].classId))
                 playerIdx.push_back(i);
         }
 
@@ -393,7 +399,7 @@ void MultiTargetTracker::update(
             for (size_t hi = 0; hi < dets.size(); ++hi)
             {
                 const auto& h = dets[hi];
-                if (h.classId != classHead)
+                if (!policy.head(h.classId))
                     continue;
 
                 const double headCx = h.box.x + h.box.width * 0.5;
@@ -445,7 +451,7 @@ void MultiTargetTracker::update(
                     continue;
 
                 DetectionCandidate d = dets[i];
-                if (d.classId == classPlayer && playerHasHeadPivot[i])
+                if (policy.body(d.classId) && playerHasHeadPivot[i])
                 {
                     d.pivotX = playerHeadPivotX[i];
                     d.pivotY = playerHeadPivotY[i];
@@ -471,8 +477,8 @@ void MultiTargetTracker::update(
             {
                 const bool allowHeadBodySwap =
                     !disableHeadshot &&
-                    ((t.classId == classPlayer && d.classId == classHead) ||
-                     (t.classId == classHead && d.classId == classPlayer));
+                    ((policy.body(t.classId) && policy.head(d.classId)) ||
+                     (policy.head(t.classId) && policy.body(d.classId)));
                 if (!allowHeadBodySwap)
                     return std::numeric_limits<double>::infinity();
 
@@ -657,6 +663,12 @@ void MultiTargetTracker::update(
 
 bool MultiTargetTracker::getLockedTarget(LockedTargetInfo& out) const
 {
+    // Reject cached locks even before the next detection frame reaches update().
+    {
+        std::lock_guard<std::mutex> lock(configMutex);
+        if (!(activePolicy_ == config.targetClassPolicy()) || activeDisableHeadshot_ != config.disable_headshot)
+            return false;
+    }
     const int idx = findTrackIndexById(lockedTrackId_);
     if (idx < 0)
         return false;

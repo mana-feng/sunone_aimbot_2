@@ -8,6 +8,7 @@
 #include <string>
 #include <cstring>
 
+#include "overlay/i18n_imgui.h"
 #include "imgui/imgui.h"
 #include "config.h"
 #include "sunone_aimbot_2.h"
@@ -151,13 +152,13 @@ static void draw_game_overlay_page(GameOverlaySettingsPage page)
             const float browseW = 76.0f;
             const float inputW = std::max(1.0f, row.controlWidth - browseW - ImGui::GetStyle().ItemSpacing.x);
             ImGui::SetNextItemWidth(inputW);
-            if (ImGui::InputText("##value", iconPathBuf, IM_ARRAYSIZE(iconPathBuf)))
+            if (OverlayI18n::InputText("##value", iconPathBuf, IM_ARRAYSIZE(iconPathBuf)))
             {
                 config.game_overlay_icon_path = iconPathBuf;
                 OverlayConfig_MarkDirty();
             }
             ImGui::SameLine();
-            if (ImGui::Button("Browse", ImVec2(browseW, 0.0f)))
+            if (OverlayI18n::Button("Browse", ImVec2(browseW, 0.0f)))
             {
                 char filePath[MAX_PATH] = {};
                 OPENFILENAMEA ofn = {};
@@ -217,7 +218,7 @@ static void draw_game_overlay_page(GameOverlaySettingsPage page)
         if (!config.game_overlay_icon_enabled)
         {
             ImGui::EndDisabled();
-            ImGui::TextDisabled("Enable Icon Overlay to edit settings.");
+            OverlayI18n::TextDisabled("Enable Icon Overlay to edit settings.");
         }
 
         OverlayUI::EndSection();
@@ -228,7 +229,7 @@ static void draw_game_overlay_page(GameOverlaySettingsPage page)
         if (OverlayUI::BeginSection("Errors", "game_overlay_section_errors"))
         {
             ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 100, 100, 255));
-            ImGui::TextWrapped("%s", g_iconLastError.c_str());
+            OverlayI18n::TextWrapped("%s", g_iconLastError.c_str());
             ImGui::PopStyleColor();
             OverlayUI::EndSection();
         }

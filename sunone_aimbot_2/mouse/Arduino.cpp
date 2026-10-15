@@ -307,12 +307,10 @@ void Arduino::processIncomingLine(const std::string& line)
                 else
                 {
                     aiming_active = pressed;
-                    aiming.store(pressed);
                 }
                 break;
             case 5:
                 aiming_active = pressed;
-                aiming.store(pressed);
                 break;
             default:
                 break;

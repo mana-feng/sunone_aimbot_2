@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "overlay/i18n_imgui.h"
 #include "imgui/imgui.h"
 #include "sunone_aimbot_2.h"
 #include "overlay.h"
@@ -28,7 +29,7 @@ bool drawButtonBindingRows(const char* rowLabel, std::vector<std::string>& bindi
 {
     if (key_names_cstrs.empty())
     {
-        ImGui::TextDisabled("No key list available.");
+        OverlayI18n::TextDisabled("No key list available.");
         return false;
     }
 
@@ -56,14 +57,14 @@ bool drawButtonBindingRows(const char* rowLabel, std::vector<std::string>& bindi
             comboWidth = 1.0f;
         ImGui::SetNextItemWidth(comboWidth);
 
-        if (ImGui::Combo("##value", &currentIndex, key_names_cstrs.data(), static_cast<int>(key_names_cstrs.size())))
+        if (OverlayI18n::Combo("##value", &currentIndex, key_names_cstrs.data(), static_cast<int>(key_names_cstrs.size())))
         {
             currentKeyName = key_names[currentIndex];
             changed = true;
         }
 
         ImGui::SameLine(0.0f, 4.0f);
-        if (ImGui::Button("+", ImVec2(actionBtnW, 0.0f)))
+        if (OverlayI18n::Button("+", ImVec2(actionBtnW, 0.0f)))
         {
             bindings.insert(bindings.begin() + static_cast<std::vector<std::string>::difference_type>(i + 1), "None");
             changed = true;
@@ -71,7 +72,7 @@ bool drawButtonBindingRows(const char* rowLabel, std::vector<std::string>& bindi
 
         ImGui::SameLine(0.0f, 3.0f);
         bool removedCurrent = false;
-        if (ImGui::Button("-", ImVec2(actionBtnW, 0.0f)))
+        if (OverlayI18n::Button("-", ImVec2(actionBtnW, 0.0f)))
         {
             if (bindings.size() <= 1 && keepAtLeastOne)
             {
@@ -108,7 +109,20 @@ void draw_buttons()
 {
     if (OverlayUI::BeginSection("Hotkeys", "buttons_section_hotkeys"))
     {
-        drawBindingRowsAndMarkDirty("Targeting", config.button_targeting);
+        drawBindingRowsAndMarkDirty("Enemy targeting", config.button_targeting);
+        drawBindingRowsAndMarkDirty("Friendly targeting", config.button_targeting_friendly);
+        OverlayI18n::TextWrapped("Hold the corresponding key to aim at that team's assigned body/head classes. Holding both pauses aiming.");
+        OverlayI18n::TextWrapped("Assign enemy and friendly classes in AI Model. Ignored classes are never targeted.");
+        if (config.auto_aim)
+            OverlayI18n::TextWrapped("Auto Aim targets enemies without a key. Hold friendly targeting to override; release to return to enemies.");
+        bool overlap = false;
+        for (const auto& enemyKey : config.button_targeting)
+            for (const auto& friendlyKey : config.button_targeting_friendly)
+                if (enemyKey != "None" && !enemyKey.empty() && enemyKey == friendlyKey) overlap = true;
+        if (overlap)
+            OverlayI18n::TextWrapped("Enemy and friendly bindings share a key. That key will pause aiming; choose different keys.");
+        OverlayI18n::Text("Current aim team: %s", config.aim_team == AimTeam::Friendly ? "Friendly" :
+            config.aim_team == AimTeam::Enemy ? "Enemy" : "Inactive");
         drawBindingRowsAndMarkDirty("Shoot", config.button_shoot);
         drawBindingRowsAndMarkDirty("Zoom", config.button_zoom);
         drawBindingRowsAndMarkDirty("Exit", config.button_exit);
@@ -117,7 +131,7 @@ void draw_buttons()
         drawBindingRowsAndMarkDirty("Open Overlay", config.button_open_overlay);
 
         const auto row = OverlayUI::BeginSettingRow("Arrow Key Options");
-        if (ImGui::Checkbox("##value", &config.enable_arrows_settings))
+        if (OverlayI18n::Checkbox("##value", &config.enable_arrows_settings))
             OverlayConfig_MarkDirty();
         OverlayUI::EndSettingRow(row);
         OverlayUI::EndSection();

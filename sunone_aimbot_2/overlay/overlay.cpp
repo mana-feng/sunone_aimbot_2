@@ -3,6 +3,7 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
+#include "overlay/i18n_imgui.h"
 #include <winsock2.h>
 #include <Windows.h>
 
@@ -563,7 +564,7 @@ static bool DrawSidebarTabButton(const OverlayTabItem& tab, bool selected)
     const float textY = pos.y + (size.y - ImGui::GetTextLineHeight()) * 0.5f;
     const ImU32 textCol = selected ? IM_COL32(255, 255, 255, 255) : (hovered ? IM_COL32(238, 238, 238, 255) : IM_COL32(202, 202, 202, 240));
     DrawSidebarIcon(draw, tab.icon, tab.group, ImVec2(pos.x + style.FramePadding.x + 4.0f, pos.y + (size.y - 18.0f) * 0.5f), selected);
-    draw->AddText(ImVec2(pos.x + style.FramePadding.x + 31.0f, textY), textCol, tab.label);
+    draw->AddText(ImVec2(pos.x + style.FramePadding.x + 31.0f, textY), textCol, OverlayI18n::T(tab.label));
 
     return pressed;
 }
@@ -1172,6 +1173,20 @@ void SetupImGui()
         io.Fonts->AddFontDefault();
     }
 
+    // Merge a Windows CJK font so ONNX class labels and filenames remain readable.
+    const char* cjkFont = nullptr;
+    if (GetFileAttributesW(L"C:\\Windows\\Fonts\\msyh.ttc") != INVALID_FILE_ATTRIBUTES)
+        cjkFont = "C:\\Windows\\Fonts\\msyh.ttc";
+    else if (GetFileAttributesW(L"C:\\Windows\\Fonts\\simhei.ttf") != INVALID_FILE_ATTRIBUTES)
+        cjkFont = "C:\\Windows\\Fonts\\simhei.ttf";
+    if (cjkFont)
+    {
+        ImFontConfig cjkConfig{};
+        cjkConfig.MergeMode = true;
+        cjkConfig.PixelSnapH = true;
+        io.Fonts->AddFontFromFileTTF(cjkFont, 16.5f, &cjkConfig, io.Fonts->GetGlyphRangesChineseFull());
+    }
+
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
 
@@ -1312,6 +1327,8 @@ static HRESULT RenderOverlayFrame(bool allowAutoResize, bool allowConfigSave)
     {
         std::lock_guard<std::mutex> lock(configMutex);
 
+        OverlayI18n::SetLanguage(config.ui_language);
+
         const int tabCount = static_cast<int>(sizeof(kOverlayTabs) / sizeof(kOverlayTabs[0]));
         if (g_activeOverlayTab < 0 || g_activeOverlayTab >= tabCount)
             g_activeOverlayTab = 0;
@@ -1334,7 +1351,7 @@ static HRESULT RenderOverlayFrame(bool allowAutoResize, bool allowConfigSave)
                 if (lastGroup)
                     ImGui::Dummy(ImVec2(0.0f, 5.0f));
                 ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(177, 177, 177, 230));
-                ImGui::TextUnformatted(group);
+                OverlayI18n::TextUnformatted(group);
                 ImGui::PopStyleColor();
             }
             if (DrawSidebarTabButton(kOverlayTabs[i], g_activeOverlayTab == i))
@@ -1354,6 +1371,17 @@ static HRESULT RenderOverlayFrame(bool allowAutoResize, bool allowConfigSave)
         ImGui::BeginChild("##options_content", ImVec2(0.0f, 0.0f),
             ImGuiChildFlags_AlwaysUseWindowPadding,
             ImGuiWindowFlags_AlwaysVerticalScrollbar);
+
+        const char* languages[] = {u8"English", u8"简体中文"};
+        int languageIndex = config.ui_language == "zh-CN" ? 1 : 0;
+        ImGui::SetNextItemWidth(160.0f);
+        if (ImGui::Combo(u8"Language / 语言", &languageIndex, languages, 2))
+        {
+            config.ui_language = languageIndex == 1 ? "zh-CN" : "en";
+            OverlayI18n::SetLanguage(config.ui_language);
+            OverlayConfig_MarkDirty();
+        }
+        ImGui::Separator();
 
         kOverlayTabs[g_activeOverlayTab].draw();
 

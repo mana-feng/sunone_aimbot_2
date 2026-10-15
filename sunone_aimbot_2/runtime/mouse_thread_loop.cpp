@@ -89,6 +89,8 @@ void mouseThreadFunction(MouseThread& mouseThread)
     bool wasAiming = false;
     int appliedDetectionResolution = -1;
     bool appliedTrackerEnabled = true;
+    TargetClassPolicy appliedClassPolicy;
+    bool appliedDisableHeadshot = false;
     auto lastTrackerUpdate = std::chrono::steady_clock::time_point::min();
 
     auto resetActiveTarget = [&]() {
@@ -108,6 +110,7 @@ void mouseThreadFunction(MouseThread& mouseThread)
         bool trackerEnabled = true;
         int predictionFuturePositions = 0;
         bool autoShoot = false;
+        TargetClassPolicy classPolicy;
 
         {
             std::lock_guard<std::mutex> cfgLock(configMutex);
@@ -116,9 +119,10 @@ void mouseThreadFunction(MouseThread& mouseThread)
             trackerEnabled = config.tracker_enabled;
             predictionFuturePositions = config.prediction_futurePositions;
             autoShoot = config.auto_shoot;
+            classPolicy = config.targetClassPolicy();
         }
 
-        const bool aimingNow = aiming.load();
+        const bool aimingNow = aiming.load() && classPolicy.team != AimTeam::None;
         if (aimingNow != wasAiming)
         {
             resetActiveTarget();
@@ -185,6 +189,22 @@ void mouseThreadFunction(MouseThread& mouseThread)
                 g_trackerLockedId = -1;
             }
             resetActiveTarget();
+        }
+
+        if (!(appliedClassPolicy == classPolicy) || appliedDisableHeadshot != disableHeadshot)
+        {
+            appliedClassPolicy = classPolicy;
+            appliedDisableHeadshot = disableHeadshot;
+            targetTracker.reset();
+            resetActiveTarget();
+            mouseThread.clearQueuedMoves();
+            mouseThread.releaseMouse();
+            {
+                std::lock_guard<std::mutex> lk(g_trackerDebugMutex);
+                g_trackerDebugTracks.clear();
+                g_trackerLockedId = -1;
+            }
+            hasNewDetection = false; // Wait for a fresh observation after changing class semantics.
         }
 
         if (hasNewDetection)
@@ -304,6 +324,20 @@ void mouseThreadFunction(MouseThread& mouseThread)
             {
                 resetActiveTarget();
             }
+        }
+
+        // A UI save or model reload may have happened while processing this frame.
+        bool classPolicyChanged = false;
+        {
+            std::lock_guard<std::mutex> cfgLock(configMutex);
+            classPolicyChanged = !(classPolicy == config.targetClassPolicy()) || disableHeadshot != config.disable_headshot;
+        }
+        if (classPolicyChanged)
+        {
+            resetActiveTarget();
+            mouseThread.clearQueuedMoves();
+            mouseThread.releaseMouse();
+            hasAimObservation = false;
         }
 
         if (aimingNow)

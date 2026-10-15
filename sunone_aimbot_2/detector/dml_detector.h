@@ -11,6 +11,8 @@
 #include <vector>
 
 #include "postProcess.h"
+#include "model_profile.h"
+#include "model_metadata.h"
 
 class DirectMLDetector
 {
@@ -29,6 +31,8 @@ public:
 
     int getNumberOfClasses();
     bool isReady() const;
+    bool usesDirectML() const { return using_directml_provider; }
+    DetectorModelInfo getModelInfo() const;
 
     std::chrono::duration<double, std::milli> lastInferenceTimeDML;
     std::chrono::duration<double, std::milli> lastPreprocessTimeDML;
@@ -40,6 +44,8 @@ public:
     std::atomic<bool> shouldExit = false;
 
 private:
+    mutable std::mutex modelInfoMutex;
+    DetectorModelInfo modelInfo;
     Ort::Env env;
     Ort::Session session{ nullptr };
     Ort::AllocatorWithDefaultOptions allocator;
@@ -57,6 +63,12 @@ private:
     int offset_output_index = -1;
     int model_input_h = -1;
     int model_input_w = -1;
+    ModelProfile model_profile;
+    int model_classes = 0;
+    int detection_output_index = -1;
+    YoloOutputLayout yolo_layout = YoloOutputLayout::Auto;
+    bool yolo_objectness = false;
+    std::vector<int> raw_output_indices;
 
     std::vector<float> input_tensor_values;
     cv::Mat preprocessBgrBuffer;
@@ -84,5 +96,8 @@ private:
     void preprocessFrameToTensor(const cv::Mat& frame, float* dst, int target_w, int target_h);
     Ort::MemoryInfo memory_info;
 };
+
+// Offline model checks: no capture, input devices, or aiming threads.
+int RunDmlModelChecks();
 
 #endif // DIRECTML_DETECTOR_H

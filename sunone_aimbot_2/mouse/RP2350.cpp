@@ -253,7 +253,6 @@ void RP2350::processIncomingLine(const std::string& line)
             break;
         case 5:
             aiming_active.store(pressed);
-            aiming.store(pressed);
             break;
         }
     }

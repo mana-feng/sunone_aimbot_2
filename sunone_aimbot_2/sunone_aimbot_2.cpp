@@ -113,7 +113,7 @@ static bool SelectCompatibleAiModel()
     if (!config.ai_model.empty())
     {
         const std::string modelPath = "models/" + config.ai_model;
-        if (!std::filesystem::exists(modelPath))
+        if (!std::filesystem::exists(std::filesystem::u8path(modelPath)))
         {
             std::cerr << "[MAIN] Specified model does not exist: " << modelPath << std::endl;
         }
@@ -256,6 +256,11 @@ int main(int argc, char** argv)
         std::cin.get();
         return -1;
     }
+
+#ifndef USE_CUDA
+    if (argc == 2 && std::string(argv[1]) == "--check-models")
+        return RunDmlModelChecks();
+#endif
 
     CPUAffinityManager cpuManager;
 

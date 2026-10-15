@@ -72,5 +72,37 @@ packages
 /sunone_aimbot_2/modules/TensorRT-10.14.1.48
 /sunone_aimbot_2/modules/TensorRT-*
 setup_opencv_dml_run.log
-setup_opencv_dml_run.log
 agents.md
+
+# Local runtime data and per-model user choices
+/models/
+/depth_models/
+/screenshots/
+/config.ini
+/imgui.ini
+*.onnx
+*.onnx.data
+*.onnx.ini
+*.engine
+*.pt
+*.pth
+*.safetensors
+*.ui-tmp-*
+
+# MSVC / IDE build state (existing tracked vendor assets stay versioned)
+*.pdb
+*.ilk
+*.exp
+*.idb
+*.ipch
+*.tlog
+*.lastbuildstate
+*.vcxproj.user
+*.suo
+CMakeUserPresets.json
+
+# Local Python environments and diagnostic output
+.venv/
+venv/
+.pytest_cache/
+*.log

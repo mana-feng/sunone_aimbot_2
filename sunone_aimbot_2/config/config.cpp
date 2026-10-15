@@ -191,6 +191,7 @@ bool Config::loadConfig(const std::string& filename)
 
         // Buttons
         button_targeting = splitString("RightMouseButton");
+        button_targeting_friendly = splitString("None");
         button_shoot = splitString("LeftMouseButton");
         button_zoom = splitString("RightMouseButton");
         button_exit = splitString("F2");
@@ -200,6 +201,7 @@ bool Config::loadConfig(const std::string& filename)
         enable_arrows_settings = false;
 
         // Overlay
+        ui_language = "en";
         overlay_opacity = 225;
         overlay_ui_scale = 1.0f;
         overlay_exclude_from_capture = true;
@@ -516,6 +518,7 @@ bool Config::loadConfig(const std::string& filename)
 
     // Buttons
     button_targeting = splitString(get_string("button_targeting", "RightMouseButton"));
+    button_targeting_friendly = splitString(get_string("button_targeting_friendly", "None"));
     button_shoot = splitString(get_string("button_shoot", "LeftMouseButton"));
     button_zoom = splitString(get_string("button_zoom", "RightMouseButton"));
     button_exit = splitString(get_string("button_exit", "F2"));
@@ -526,6 +529,8 @@ bool Config::loadConfig(const std::string& filename)
 
     // Overlay
     overlay_opacity = get_long("overlay_opacity", 225);
+    ui_language = get_string("ui_language", "en");
+    if (ui_language != "zh-CN") ui_language = "en";
     overlay_ui_scale = (float)get_double("overlay_ui_scale", 1.0);
     overlay_exclude_from_capture = get_bool("overlay_exclude_from_capture", true);
     overlay_x = get_long("overlay_x", 0);
@@ -819,6 +824,7 @@ bool Config::saveConfig(const std::string& filename)
     // Buttons
     file << "# Buttons\n"
         << "button_targeting = " << joinStrings(button_targeting) << "\n"
+        << "button_targeting_friendly = " << joinStrings(button_targeting_friendly) << "\n"
         << "button_shoot = " << joinStrings(button_shoot) << "\n"
         << "button_zoom = " << joinStrings(button_zoom) << "\n"
         << "button_exit = " << joinStrings(button_exit) << "\n"
@@ -829,6 +835,7 @@ bool Config::saveConfig(const std::string& filename)
 
     // Overlay
     file << "# Overlay\n"
+        << "ui_language = " << ui_language << "\n"
         << "overlay_opacity = " << overlay_opacity << "\n"
         << std::fixed << std::setprecision(2)
         << "overlay_ui_scale = " << overlay_ui_scale << "\n"

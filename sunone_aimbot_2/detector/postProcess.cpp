@@ -5,8 +5,8 @@
 #include <cmath>
 
 #include "postProcess.h"
-#include "sunone_aimbot_2.h"
 #ifdef USE_CUDA
+#include "sunone_aimbot_2.h"
 #include "trt_detector.h"
 #endif
 
@@ -37,15 +37,6 @@ bool ExtractRowsCols(const std::vector<int64_t>& shape, int* rows, int* cols)
 
     return TryPositiveInt64ToInt(shape[shape.size() - 2], rows) &&
         TryPositiveInt64ToInt(shape[shape.size() - 1], cols);
-}
-
-int ConfiguredClassCountHint()
-{
-    const int maxClassId = std::max(config.class_player, config.class_head);
-    if (maxClassId < 0 || maxClassId > 9999)
-        return 0;
-
-    return maxClassId + 1;
 }
 
 bool TryResolveClassLayout(
@@ -81,9 +72,6 @@ bool TryResolveClassLayout(
     };
 
     if (tryHint(numClassesHint))
-        return true;
-
-    if (tryHint(ConfiguredClassCountHint()))
         return true;
 
     if (preferObjectness && extent > 5)
@@ -158,7 +146,11 @@ void AddXyxyDetection(
     float scale,
     float confThreshold)
 {
-    if (confidence <= confThreshold || x2 <= x1 || y2 <= y1)
+    if (!std::isfinite(confidence) || !std::isfinite(x1) || !std::isfinite(y1) ||
+        !std::isfinite(x2) || !std::isfinite(y2) || !std::isfinite(scale) || scale <= 0 ||
+        confidence <= confThreshold || x2 <= x1 || y2 <= y1 ||
+        std::abs(x1 * scale) > 32767 || std::abs(y1 * scale) > 32767 ||
+        (x2 - x1) * scale > 32767 || (y2 - y1) * scale > 32767)
         return;
 
     cv::Rect box;
@@ -184,7 +176,11 @@ void AddCxcywhDetection(
     float scale,
     float confThreshold)
 {
-    if (confidence <= confThreshold || width <= 0.0f || height <= 0.0f)
+    if (!std::isfinite(confidence) || !std::isfinite(cx) || !std::isfinite(cy) ||
+        !std::isfinite(width) || !std::isfinite(height) || !std::isfinite(scale) || scale <= 0 ||
+        confidence <= confThreshold || width <= 0.0f || height <= 0.0f ||
+        std::abs(cx * scale) > 32767 || std::abs(cy * scale) > 32767 ||
+        width * scale > 32767 || height * scale > 32767)
         return;
 
     const float halfWidth = 0.5f * width;
@@ -331,7 +327,9 @@ std::vector<Detection> DecodeYoloOutput(
     float nmsThreshold,
     int maxDetections,
     float scale,
-    std::chrono::duration<double, std::milli>* nmsTime)
+    std::chrono::duration<double, std::milli>* nmsTime,
+    YoloOutputLayout layout = YoloOutputLayout::Auto,
+    bool usesObjectness = false)
 {
     std::vector<Detection> detections;
     if (!output)
@@ -342,11 +340,22 @@ std::vector<Detection> DecodeYoloOutput(
     if (!ExtractRowsCols(shape, &rows, &cols))
         return detections;
 
-    if (cols == 6 && LooksLikeXyxyDetections(output, rows, cols))
+    if (layout == YoloOutputLayout::FeatureMajor)
+    {
+        DecodeFeatureMajorPredictions(output, rows, cols, numClassesHint,
+            usesObjectness, confThreshold, scale, detections);
+    }
+    else if (layout == YoloOutputLayout::PredictionMajor)
+    {
+        DecodePredictionMajorPredictions(output, rows, cols, numClassesHint,
+            usesObjectness, confThreshold, scale, detections);
+    }
+    else if ((layout == YoloOutputLayout::Xyxy && cols == 6) ||
+        (layout == YoloOutputLayout::Auto && cols == 6 && LooksLikeXyxyDetections(output, rows, cols)))
     {
         DecodeXyxyDetections(output, rows, cols, confThreshold, scale, detections);
     }
-    else if (rows <= cols)
+    else if (layout == YoloOutputLayout::Auto && rows <= cols)
     {
         int classes = 0;
         bool usesObjectness = false;
@@ -363,7 +372,7 @@ std::vector<Detection> DecodeYoloOutput(
                 detections);
         }
     }
-    else
+    else if (layout == YoloOutputLayout::Auto)
     {
         int classes = 0;
         bool usesObjectness = false;
@@ -528,7 +537,9 @@ std::vector<Detection> postProcessYoloDML(
     float confThreshold,
     float nmsThreshold,
     int maxDetections,
-    std::chrono::duration<double, std::milli>* nmsTime
+    std::chrono::duration<double, std::milli>* nmsTime,
+    YoloOutputLayout layout,
+    bool usesObjectness
 )
 {
     return DecodeYoloOutput(
@@ -539,6 +550,8 @@ std::vector<Detection> postProcessYoloDML(
         nmsThreshold,
         maxDetections,
         1.0f,
-        nmsTime);
+        nmsTime,
+        layout,
+        usesObjectness);
 }
 #endif

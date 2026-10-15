@@ -2,6 +2,7 @@
 
 #ifdef USE_CUDA
 
+#include "overlay/i18n_imgui.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -63,7 +64,10 @@ inline std::string FitTextToWidth(const std::string& text, float maxWidth)
     std::string out = text;
     while (!out.empty())
     {
-        out.pop_back();
+        // Remove a complete UTF-8 codepoint, not one byte of a Chinese label.
+        size_t cut = out.size() - 1;
+        while (cut > 0 && (static_cast<unsigned char>(out[cut]) & 0xC0) == 0x80) --cut;
+        out.resize(cut);
         std::string candidate = out + suffix;
         if (ImGui::CalcTextSize(candidate.c_str()).x <= maxWidth)
         {
@@ -189,7 +193,7 @@ inline void DrawPhaseRows(ImDrawList* draw, const ProgressSnapshot& snapshot,
     {
         const int hidden = static_cast<int>(snapshot.phases.size()) - maxRows;
         char text[64] = {};
-        std::snprintf(text, sizeof(text), "%d more export phases running", hidden);
+        std::snprintf(text, sizeof(text), OverlayI18n::T("%d more export phases running"), hidden);
         draw->AddText(ImVec2(origin.x, y), IM_COL32(172, 176, 184, 230), text);
         y += ImGui::GetTextLineHeight() + 4.0f;
     }
@@ -224,7 +228,7 @@ inline void DrawTensorRtExportPanel(const char* id, const char* title,
     DrawActivityDots(draw, ImVec2(cardMin.x + pad + 15.0f, cardMin.y + 30.0f), static_cast<float>(ImGui::GetTime()));
 
     const float textX = cardMin.x + pad + 42.0f;
-    draw->AddText(ImVec2(textX, cardMin.y + 15.0f), IM_COL32(246, 247, 250, 255), title ? title : "TensorRT export");
+    draw->AddText(ImVec2(textX, cardMin.y + 15.0f), IM_COL32(246, 247, 250, 255), OverlayI18n::T(title ? title : "TensorRT export"));
 
     std::string detail;
     if (modelName && *modelName)
@@ -233,16 +237,16 @@ inline void DrawTensorRtExportPanel(const char* id, const char* title,
     }
     else if (subtitle && *subtitle)
     {
-        detail = subtitle;
+        detail = OverlayI18n::T(subtitle);
     }
     else
     {
-        detail = "Building optimized engine";
+        detail = OverlayI18n::T("Building optimized engine");
     }
     detail = FitTextToWidth(detail, width - 210.0f);
     draw->AddText(ImVec2(textX, cardMin.y + 39.0f), IM_COL32(184, 190, 200, 238), detail.c_str());
 
-    const char* stateText = snapshot.cancelRequested ? "Canceling" : (snapshot.stale ? "Working" : "Running");
+    const char* stateText = OverlayI18n::T(snapshot.cancelRequested ? "Canceling" : (snapshot.stale ? "Working" : "Running"));
     const ImVec2 stateSize = ImGui::CalcTextSize(stateText);
     const ImVec2 pillMin(cardMax.x - pad - stateSize.x - 22.0f, cardMin.y + 18.0f);
     const ImVec2 pillMax(cardMax.x - pad, cardMin.y + 45.0f);
@@ -261,9 +265,9 @@ inline void DrawTensorRtExportPanel(const char* id, const char* title,
     }
     else
     {
-        std::snprintf(totalLabel, sizeof(totalLabel), "Preparing");
+        std::snprintf(totalLabel, sizeof(totalLabel), "%s", OverlayI18n::T("Preparing"));
     }
-    draw->AddText(ImVec2(innerX, y), IM_COL32(236, 236, 240, 245), "Overall progress");
+    draw->AddText(ImVec2(innerX, y), IM_COL32(236, 236, 240, 245), OverlayI18n::T("Overall progress"));
     const float totalLabelW = ImGui::CalcTextSize(totalLabel).x;
     draw->AddText(ImVec2(innerX + innerW - totalLabelW, y), IM_COL32(186, 190, 198, 235), totalLabel);
     y += ImGui::GetTextLineHeight() + 8.0f;
@@ -273,7 +277,7 @@ inline void DrawTensorRtExportPanel(const char* id, const char* title,
     if (snapshot.stale)
     {
         const char* warning = "TensorRT may spend a long time selecting tactics without reporting new steps.";
-        const std::string fittedWarning = FitTextToWidth(warning, innerW - 20.0f);
+        const std::string fittedWarning = FitTextToWidth(OverlayI18n::T(warning), innerW - 20.0f);
         draw->AddRectFilled(ImVec2(innerX, y), ImVec2(innerX + innerW, y + 23.0f), IM_COL32(70, 60, 36, 210), 5.0f);
         draw->AddText(ImVec2(innerX + 10.0f, y + 4.0f), IM_COL32(252, 225, 115, 255),
             fittedWarning.c_str());
@@ -287,7 +291,7 @@ inline void DrawTensorRtExportPanel(const char* id, const char* title,
     else
     {
         draw->AddText(ImVec2(innerX, y), IM_COL32(186, 190, 198, 235),
-            subtitle && *subtitle ? subtitle : "Waiting for TensorRT to report build phases");
+            OverlayI18n::T(subtitle && *subtitle ? subtitle : "Waiting for TensorRT to report build phases"));
         y += 30.0f;
     }
 
@@ -301,7 +305,7 @@ inline void DrawTensorRtExportPanel(const char* id, const char* title,
     {
         ImGui::BeginDisabled();
     }
-    if (ImGui::Button(cancelLabel ? cancelLabel : "Cancel export", ImVec2(buttonW, 0.0f)))
+    if (OverlayI18n::Button(cancelLabel ? cancelLabel : "Cancel export", ImVec2(buttonW, 0.0f)))
     {
         gTrtExportCancelRequested = true;
     }
@@ -313,7 +317,7 @@ inline void DrawTensorRtExportPanel(const char* id, const char* title,
     ImGui::PopStyleVar();
 
     char updated[64] = {};
-    std::snprintf(updated, sizeof(updated), "Last update %.1f s ago", snapshot.secondsSinceUpdate);
+    std::snprintf(updated, sizeof(updated), OverlayI18n::T("Last update %.1f s ago"), snapshot.secondsSinceUpdate);
     const float updatedW = ImGui::CalcTextSize(updated).x;
     draw->AddText(ImVec2(cardMax.x - pad - updatedW, cardMax.y - pad - ImGui::GetTextLineHeight() - 4.0f),
         snapshot.stale ? IM_COL32(252, 225, 115, 255) : IM_COL32(156, 162, 172, 230), updated);

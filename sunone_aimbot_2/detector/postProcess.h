@@ -13,6 +13,15 @@ struct Detection
     int classId;
 };
 
+// Explicit layouts avoid interpreting a one-class YOLO output as post-NMS boxes.
+enum class YoloOutputLayout
+{
+    Auto,
+    FeatureMajor,
+    PredictionMajor,
+    Xyxy
+};
+
 void NMS(
     std::vector<Detection>& detections,
     float nmsThreshold,
@@ -39,7 +48,9 @@ std::vector<Detection> postProcessYoloDML(
     float confThreshold,
     float nmsThreshold,
     int maxDetections = 100,
-    std::chrono::duration<double, std::milli>* nmsTime = nullptr
+    std::chrono::duration<double, std::milli>* nmsTime = nullptr,
+    YoloOutputLayout layout = YoloOutputLayout::Auto,
+    bool usesObjectness = false
 );
 #endif
 #endif // POSTPROCESS_H

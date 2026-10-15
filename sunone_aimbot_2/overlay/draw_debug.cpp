@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "overlay/i18n_imgui.h"
 #include "imgui/imgui.h"
 #include "scr/data_collector.h"
 #include "sunone_aimbot_2.h"
@@ -85,7 +86,7 @@ static bool drawScreenshotButtonRows()
 {
     if (key_names_cstrs.empty())
     {
-        ImGui::TextDisabled("No key list available.");
+        OverlayI18n::TextDisabled("No key list available.");
         return false;
     }
 
@@ -113,14 +114,14 @@ static bool drawScreenshotButtonRows()
             comboWidth = 1.0f;
         ImGui::SetNextItemWidth(comboWidth);
 
-        if (ImGui::Combo("##value", &currentIndex, key_names_cstrs.data(), static_cast<int>(key_names_cstrs.size())))
+        if (OverlayI18n::Combo("##value", &currentIndex, key_names_cstrs.data(), static_cast<int>(key_names_cstrs.size())))
         {
             currentKeyName = key_names[currentIndex];
             changed = true;
         }
 
         ImGui::SameLine(0.0f, 4.0f);
-        if (ImGui::Button("+", ImVec2(actionBtnW, 0.0f)))
+        if (OverlayI18n::Button("+", ImVec2(actionBtnW, 0.0f)))
         {
             config.screenshot_button.insert(config.screenshot_button.begin() + static_cast<std::vector<std::string>::difference_type>(i + 1), "None");
             changed = true;
@@ -128,7 +129,7 @@ static bool drawScreenshotButtonRows()
 
         ImGui::SameLine(0.0f, 3.0f);
         bool removedCurrent = false;
-        if (ImGui::Button("-", ImVec2(actionBtnW, 0.0f)))
+        if (OverlayI18n::Button("-", ImVec2(actionBtnW, 0.0f)))
         {
             if (config.screenshot_button.size() <= 1)
             {
@@ -293,7 +294,7 @@ static bool drawDataCollectionSection()
         if (OverlayUI::InputTextRow("Class filter", g_collectClassFilterBuffer, sizeof(g_collectClassFilterBuffer)))
             changed |= applyDebugTextBuffer(config.auto_label_record_classes, g_collectClassFilterMirror, g_collectClassFilterBuffer);
 
-        ImGui::TextDisabled("Leave class filter empty to record all classes. Use comma-separated ids like 0,1.");
+        OverlayI18n::TextDisabled("Leave class filter empty to record all classes. Use comma-separated ids like 0,1.");
         ImGui::EndDisabled();
 
         OverlayUI::EndSubsection();
@@ -301,15 +302,15 @@ static bool drawDataCollectionSection()
 
     const cvm::DataCollectionUiState ui = cvm::GetDataCollectionUiState("", config.ai_model.c_str(), config);
     ImGui::Separator();
-    ImGui::Text("Observed frames: %llu", static_cast<unsigned long long>(ui.observed_frame_count));
-    ImGui::Text("Save attempts: %llu", static_cast<unsigned long long>(ui.attempted_sample_count));
-    ImGui::Text("Images saved: %llu", static_cast<unsigned long long>(ui.saved_image_count));
-    ImGui::Text("Label files: %llu", static_cast<unsigned long long>(ui.saved_label_count));
-    ImGui::TextWrapped("Resolved folder: %s", ui.resolved_output_dir.c_str());
+    OverlayI18n::Text("Observed frames: %llu", static_cast<unsigned long long>(ui.observed_frame_count));
+    OverlayI18n::Text("Save attempts: %llu", static_cast<unsigned long long>(ui.attempted_sample_count));
+    OverlayI18n::Text("Images saved: %llu", static_cast<unsigned long long>(ui.saved_image_count));
+    OverlayI18n::Text("Label files: %llu", static_cast<unsigned long long>(ui.saved_label_count));
+    OverlayI18n::TextWrapped("Resolved folder: %s", ui.resolved_output_dir.c_str());
     if (!ui.status.empty())
-        ImGui::TextWrapped("Status: %s", ui.status.c_str());
+        OverlayI18n::TextWrapped("Status: %s", ui.status.c_str());
     else
-        ImGui::TextDisabled("Status: idle");
+        OverlayI18n::TextDisabled("Status: idle");
 
     if (OverlayUI::ButtonRow("Resolved folder", "Copy path", "copy_resolved_path"))
         ImGui::SetClipboardText(ui.resolved_output_dir.c_str());
@@ -336,7 +337,7 @@ void draw_debug_frame()
 
     {
         const auto row = OverlayUI::BeginSettingRow("Debug scale");
-        ImGui::SliderFloat("##value", &debug_scale, 0.1f, 2.0f, "%.1fx");
+        OverlayI18n::SliderFloat("##value", &debug_scale, 0.1f, 2.0f, "%.1fx");
         OverlayUI::EndSettingRow(row);
     }
 
@@ -441,7 +442,7 @@ void draw_capture_preview()
     {
         {
             const auto row = OverlayUI::BeginSettingRow("Show Preview Window");
-            if (ImGui::Checkbox("##value", &config.show_window))
+            if (OverlayI18n::Checkbox("##value", &config.show_window))
             {
                 OverlayConfig_MarkDirty();
             }

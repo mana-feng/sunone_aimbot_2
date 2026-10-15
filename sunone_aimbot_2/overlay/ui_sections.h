@@ -1,6 +1,7 @@
 #ifndef OVERLAY_UI_SECTIONS_H
 #define OVERLAY_UI_SECTIONS_H
 
+#include "overlay/i18n_imgui.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -69,9 +70,10 @@ inline SettingRow BeginSettingRow(const char* label, float height = 58.0f, float
     draw->AddRectFilled(rowMin, rowMax, LerpColor(IM_COL32(37, 39, 44, 232), IM_COL32(45, 47, 52, 238), hoverAnim), 3.0f);
     draw->AddRect(rowMin, rowMax, IM_COL32(255, 255, 255, static_cast<int>(6.0f + 8.0f * hoverAnim)), 3.0f, 0, 1.0f);
 
-    const ImVec2 labelSize = ImGui::CalcTextSize(label);
+    const auto visibleLabel = OverlayI18n::Display(label);
+    const ImVec2 labelSize = ImGui::CalcTextSize(visibleLabel.c_str());
     const float labelY = rowMin.y + (height - labelSize.y) * 0.5f;
-    draw->AddText(ImVec2(rowMin.x + 15.0f, labelY), IM_COL32(232, 232, 236, 245), label);
+    draw->AddText(ImVec2(rowMin.x + 15.0f, labelY), IM_COL32(232, 232, 236, 245), visibleLabel.c_str());
 
     const float maxControlW = std::min(320.0f, std::max(180.0f, avail - 205.0f));
     const float minControlW = std::min(210.0f, maxControlW);
@@ -93,7 +95,7 @@ inline void EndSettingRow(const SettingRow& row) noexcept
 inline bool CheckboxRow(const char* label, bool* value, const char* id = "##value") noexcept
 {
     const SettingRow row = BeginSettingRow(label);
-    const bool changed = ImGui::Checkbox(id, value);
+    const bool changed = OverlayI18n::Checkbox(id, value);
     EndSettingRow(row);
     return changed;
 }
@@ -101,7 +103,7 @@ inline bool CheckboxRow(const char* label, bool* value, const char* id = "##valu
 inline bool SliderIntRow(const char* label, int* value, int minValue, int maxValue, const char* format = "%d", const char* id = "##value") noexcept
 {
     const SettingRow row = BeginSettingRow(label);
-    const bool changed = ImGui::SliderInt(id, value, minValue, maxValue, format);
+    const bool changed = OverlayI18n::SliderInt(id, value, minValue, maxValue, format);
     EndSettingRow(row);
     return changed;
 }
@@ -109,7 +111,7 @@ inline bool SliderIntRow(const char* label, int* value, int minValue, int maxVal
 inline bool SliderFloatRow(const char* label, float* value, float minValue, float maxValue, const char* format = "%.3f", const char* id = "##value") noexcept
 {
     const SettingRow row = BeginSettingRow(label);
-    const bool changed = ImGui::SliderFloat(id, value, minValue, maxValue, format);
+    const bool changed = OverlayI18n::SliderFloat(id, value, minValue, maxValue, format);
     EndSettingRow(row);
     return changed;
 }
@@ -117,7 +119,7 @@ inline bool SliderFloatRow(const char* label, float* value, float minValue, floa
 inline bool InputTextRow(const char* label, char* buffer, size_t bufferSize, ImGuiInputTextFlags flags = 0, const char* id = "##value") noexcept
 {
     const SettingRow row = BeginSettingRow(label);
-    const bool changed = ImGui::InputText(id, buffer, bufferSize, flags);
+    const bool changed = OverlayI18n::InputText(id, buffer, bufferSize, flags);
     EndSettingRow(row);
     return changed;
 }
@@ -125,7 +127,7 @@ inline bool InputTextRow(const char* label, char* buffer, size_t bufferSize, ImG
 inline bool InputIntRow(const char* label, int* value, int step = 1, int stepFast = 100, ImGuiInputTextFlags flags = 0, const char* id = "##value") noexcept
 {
     const SettingRow row = BeginSettingRow(label);
-    const bool changed = ImGui::InputInt(id, value, step, stepFast, flags);
+    const bool changed = OverlayI18n::InputInt(id, value, step, stepFast, flags);
     EndSettingRow(row);
     return changed;
 }
@@ -134,7 +136,7 @@ inline bool ButtonRow(const char* label, const char* buttonText, const char* id 
 {
     ImGui::PushID(id ? id : label);
     const SettingRow row = BeginSettingRow(label);
-    const bool clicked = ImGui::Button(buttonText, ImVec2(row.controlWidth, 0.0f));
+    const bool clicked = OverlayI18n::Button(buttonText, ImVec2(row.controlWidth, 0.0f));
     EndSettingRow(row);
     ImGui::PopID();
     return clicked;
@@ -143,7 +145,7 @@ inline bool ButtonRow(const char* label, const char* buttonText, const char* id 
 inline bool ComboRow(const char* label, int* currentItem, const char* const items[], int itemsCount, const char* id = "##value") noexcept
 {
     const SettingRow row = BeginSettingRow(label);
-    const bool changed = ImGui::Combo(id, currentItem, items, itemsCount);
+    const bool changed = OverlayI18n::Combo(id, currentItem, items, itemsCount);
     EndSettingRow(row);
     return changed;
 }
@@ -155,8 +157,8 @@ inline void TextRow(const char* text, ImU32 color = IM_COL32(255, 236, 86, 255),
     const ImVec2 rowMax(rowMin.x + avail, rowMin.y + height);
     ImDrawList* draw = ImGui::GetWindowDrawList();
     draw->AddRectFilled(rowMin, rowMax, IM_COL32(37, 39, 44, 145), 3.0f);
-    const ImVec2 textSize = ImGui::CalcTextSize(text);
-    draw->AddText(ImVec2(rowMin.x + 14.0f, rowMin.y + (height - textSize.y) * 0.5f), color, text);
+    const ImVec2 textSize = ImGui::CalcTextSize(OverlayI18n::T(text));
+    draw->AddText(ImVec2(rowMin.x + 14.0f, rowMin.y + (height - textSize.y) * 0.5f), color, OverlayI18n::T(text));
     ImGui::Dummy(ImVec2(avail, height + 6.0f));
 }
 
@@ -183,9 +185,9 @@ inline void DrawSectionHeader(const char* label, bool subsection = false) noexce
     drawList->AddRectFilled(pos, max, bg, rounding);
     drawList->AddRect(pos, max, border, rounding, 0, 1.0f);
 
-    const ImVec2 textSize = ImGui::CalcTextSize(label);
+    const ImVec2 textSize = ImGui::CalcTextSize(OverlayI18n::T(label));
     const float textY = pos.y + (height - textSize.y) * 0.5f;
-    drawList->AddText(ImVec2(pos.x + 15.0f, textY), subsection ? IM_COL32(218, 218, 222, 245) : IM_COL32(235, 235, 238, 250), label);
+    drawList->AddText(ImVec2(pos.x + 15.0f, textY), subsection ? IM_COL32(218, 218, 222, 245) : IM_COL32(235, 235, 238, 250), OverlayI18n::T(label));
 }
 
 inline void BeginBodyGroup(bool subsection = false) noexcept

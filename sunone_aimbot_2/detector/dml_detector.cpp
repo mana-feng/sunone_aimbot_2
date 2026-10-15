@@ -31,6 +31,34 @@ extern std::atomic<bool> detectionPaused;
 
 namespace
 {
+std::wstring modelWidePath(const std::string& path)
+{
+    if (path.empty()) throw std::runtime_error("Empty model path");
+    const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+        path.data(), static_cast<int>(path.size()), nullptr, 0);
+    if (!length) throw std::runtime_error("Model path is not valid UTF-8");
+    std::wstring wide(length, L'\0');
+    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path.data(),
+        static_cast<int>(path.size()), wide.data(), length);
+    return wide;
+}
+
+template<class TensorInfo>
+std::string describeModelTensor(const std::string& name, const TensorInfo& info)
+{
+    const auto shape = info.GetShape();
+    std::vector<const char*> symbols(shape.size(), nullptr);
+    info.GetSymbolicDimensions(symbols.data(), symbols.size());
+    std::string description = name + " : float32 [";
+    for (size_t i = 0; i < shape.size(); ++i)
+    {
+        if (i) description += ", ";
+        description += shape[i] >= 0 ? std::to_string(shape[i]) :
+            symbols[i] && *symbols[i] ? symbols[i] : "dynamic";
+    }
+    return description + "]";
+}
+
 bool tryInt64ToInt(int64_t value, int* out)
 {
     if (!out)
@@ -343,6 +371,12 @@ bool DirectMLDetector::isReady() const
     return model_ready.load();
 }
 
+DetectorModelInfo DirectMLDetector::getModelInfo() const
+{
+    std::lock_guard<std::mutex> lock(modelInfoMutex);
+    return modelInfo;
+}
+
 Ort::SessionOptions DirectMLDetector::createSessionOptions(
     bool useDirectML,
     GraphOptimizationLevel graphOptimizationLevel)
@@ -374,8 +408,11 @@ bool DirectMLDetector::tryInitializeModel(
     try
     {
         Ort::SessionOptions options = createSessionOptions(useDirectML, graphOptimizationLevel);
-        std::wstring model_path_wide(model_path.begin(), model_path.end());
+        std::wstring model_path_wide = modelWidePath(model_path);
         Ort::Session newSession(env, model_path_wide.c_str(), options);
+        ModelProfile newProfile = loadModelProfile(std::filesystem::path(model_path_wide));
+        if (newSession.GetInputCount() != 1)
+            throw std::runtime_error("Detector requires exactly one input tensor");
 
         std::string newInputName = newSession.GetInputNameAllocated(0, allocator).get();
 
@@ -398,6 +435,102 @@ bool DirectMLDetector::tryInitializeModel(
         Ort::TypeInfo input_type_info = newSession.GetInputTypeInfo(0);
         auto input_tensor_info = input_type_info.GetTensorTypeAndShapeInfo();
         std::vector<int64_t> newInputShape = input_tensor_info.GetShape();
+        if (input_tensor_info.GetElementType() != ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT ||
+            newInputShape.size() != 4 || newInputShape[1] != 3)
+            throw std::runtime_error("Detector requires FP32 NCHW input with three channels");
+
+        DetectorModelInfo newInfo;
+        newInfo.modelName = std::filesystem::path(model_path_wide).filename().u8string();
+        newInfo.provider = providerLabel;
+        newInfo.input = describeModelTensor(newInputName, input_tensor_info);
+        auto metadata = newSession.GetModelMetadata();
+        for (const auto& key : metadata.GetCustomMetadataMapKeysAllocated(allocator))
+        {
+            auto value = metadata.LookupCustomMetadataMapAllocated(key.get(), allocator);
+            if (value) newInfo.metadata.emplace(key.get(), value.get());
+        }
+        const auto names = newInfo.metadata.find("names");
+        if (names != newInfo.metadata.end()) newInfo.classNames = parseModelClassNames(names->second);
+        if (!newInfo.classNames.empty()) newInfo.namesSource = "ONNX metadata";
+        else
+        {
+            newInfo.classNames = parseModelClassNames(newProfile.names);
+            newInfo.namesSource = newInfo.classNames.empty() ? "No readable names; using class IDs" : "Model sidecar (.onnx.ini)";
+        }
+        const int metadataClasses = newInfo.classNames.empty() ? 0 : newInfo.classNames.rbegin()->first + 1;
+        int newClasses = newProfile.classes ? newProfile.classes : metadataClasses;
+        int newDetectionIndex = -1;
+        std::vector<int> newRawIndices;
+        YoloOutputLayout newLayout = YoloOutputLayout::Auto;
+        bool newObjectness = false;
+        for (size_t i = 0; i < outputCount; ++i)
+        {
+            auto type = newSession.GetOutputTypeInfo(i);
+            auto info = type.GetTensorTypeAndShapeInfo();
+            if (info.GetElementType() != ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT)
+                throw std::runtime_error("Detector requires FP32 output tensors");
+            newInfo.outputs.push_back(describeModelTensor(newOutputNames[i], info));
+            const auto shape = info.GetShape();
+            if (shape.size() == 5) newRawIndices.push_back(static_cast<int>(i));
+            if (shape.size() == 3 && (newProfile.output.empty() || newProfile.output == newOutputNames[i]) &&
+                newDetectionIndex < 0) newDetectionIndex = static_cast<int>(i);
+        }
+        if (!newSunpointRawOutput && (newProfile.layout == "yolov5_raw" || newDetectionIndex < 0))
+        {
+            if (newRawIndices.empty()) throw std::runtime_error("No supported detection output tensor");
+            newProfile.layout = "yolov5_raw";
+            for (int i : newRawIndices)
+            {
+                const auto shape = newSession.GetOutputTypeInfo(i).GetTensorTypeAndShapeInfo().GetShape();
+                if (shape[1] <= 0 || shape[2] <= 0 || shape[3] <= 0 || shape[4] < 6 || shape[4] > 10005)
+                    throw std::runtime_error("Invalid raw YOLOv5 head shape");
+                const int classes = static_cast<int>(shape[4]) - 5;
+                if (newClasses && newClasses != classes) throw std::runtime_error("Raw head class counts disagree");
+                newClasses = classes;
+                const auto anchor = newProfile.anchors.find(newOutputNames[i]);
+                if (anchor == newProfile.anchors.end() || anchor->second.size() != static_cast<size_t>(shape[1]) * 2)
+                    throw std::runtime_error("Raw YOLOv5 requires original pixel anchors in <model>.onnx.ini: anchors." + newOutputNames[i]);
+            }
+            newObjectness = true;
+            newLayout = YoloOutputLayout::PredictionMajor;
+        }
+        else if (!newSunpointRawOutput)
+        {
+            newRawIndices.clear(); // Auxiliary heads must not be decoded twice.
+            const auto shape = newSession.GetOutputTypeInfo(newDetectionIndex).GetTensorTypeAndShapeInfo().GetShape();
+            bool feature = newProfile.layout == "feature" || (newProfile.layout.empty() &&
+                shape[1] > 4 && shape[1] <= 10004 && (shape[2] <= 0 || shape[1] < shape[2]));
+            newLayout = feature ? YoloOutputLayout::FeatureMajor : YoloOutputLayout::PredictionMajor;
+            const int64_t extent = feature ? shape[1] : shape[2];
+            if (extent < 5 || extent > 10005) throw std::runtime_error("Invalid detection feature dimension");
+            if (!feature && extent == 6 && newProfile.layout.empty() && !newClasses)
+                throw std::runtime_error("Ambiguous six-column output: specify layout in <model>.onnx.ini (YOLO, YOLOX raw or XYXY)");
+            if (newProfile.layout == "xyxy")
+            {
+                if (shape[2] != 6 || newClasses <= 0) throw std::runtime_error("XYXY layout requires six columns and an explicit class count");
+                newLayout = YoloOutputLayout::Xyxy;
+            }
+            else
+            {
+                newObjectness = newProfile.objectness >= 0 ? newProfile.objectness != 0 :
+                    (newClasses > 0 ? extent == newClasses + 5 : !feature);
+                if (!newClasses) newClasses = static_cast<int>(extent) - (newObjectness ? 5 : 4);
+                if (newClasses <= 0 || extent != newClasses + (newObjectness ? 5 : 4))
+                    throw std::runtime_error("Detection layout/class count mismatch; check model sidecar");
+            }
+        }
+        else
+        {
+            const auto shape = newSession.GetOutputTypeInfo(newHeatOutputIndex).GetTensorTypeAndShapeInfo().GetShape();
+            if (shape.size() != 4 || shape[1] <= 0 || shape[1] > 10000)
+                throw std::runtime_error("Invalid SunPoint heat shape");
+            newClasses = static_cast<int>(shape[1]);
+        }
+        if (!newProfile.classRoles.empty()) validateModelClassRoles(newProfile.classRoles, newClasses);
+        if (newProfile.classRoles.empty())
+            newProfile.classRoles = legacyModelClassRoles(newClasses, newProfile.player, newProfile.head);
+        if (newProfile.player >= newClasses || newProfile.head >= newClasses)
+            throw std::runtime_error("Model sidecar target class is outside model class range");
 
         int newModelInputH = -1;
         int newModelInputW = -1;
@@ -417,7 +550,30 @@ bool DirectMLDetector::tryInitializeModel(
         bool isStatic = true;
         for (auto d : newInputShape) if (d <= 0) isStatic = false;
 
+        newInfo.classes = newClasses;
+        newInfo.layout = newSunpointRawOutput ? "SunPoint raw" : !newProfile.layout.empty() ? newProfile.layout :
+            newLayout == YoloOutputLayout::FeatureMajor ? "feature" : "prediction";
+        newInfo.objectness = newObjectness;
+        newInfo.colorOrder = newProfile.colorOrder;
+        newInfo.inputScale = newProfile.inputScale;
+
         session = std::move(newSession);
+        model_profile = std::move(newProfile);
+        model_classes = newClasses;
+        detection_output_index = newDetectionIndex;
+        raw_output_indices = std::move(newRawIndices);
+        yolo_layout = newLayout;
+        yolo_objectness = newObjectness;
+        {
+            std::lock_guard<std::mutex> lock(configMutex);
+            config.model_class_roles = model_profile.classRoles;
+            config.class_player = firstModelClassWithRole(config.model_class_roles, ModelClassRole::EnemyBody);
+            config.class_head = firstModelClassWithRole(config.model_class_roles, ModelClassRole::EnemyHead);
+            ++config.model_class_revision;
+            // Lock order is configMutex -> modelInfoMutex, matching the Overlay.
+            std::lock_guard<std::mutex> infoLock(modelInfoMutex);
+            modelInfo = std::move(newInfo);
+        }
         input_name = std::move(newInputName);
         output_names = std::move(newOutputNames);
         output_name = output_names.empty() ? std::string() : output_names.front();
@@ -525,6 +681,12 @@ bool DirectMLDetector::initializeModel(const std::string& model_path)
     std::cerr << "[DML] CPU fallback initialization failed for " << model_path
               << ": " << cpuError << std::endl;
 
+    {
+        std::lock_guard<std::mutex> lock(modelInfoMutex);
+        modelInfo.failedModel = std::filesystem::u8path(model_path).filename().u8string();
+        modelInfo.loadError = cpuError;
+    }
+
     if (hadReadySession)
     {
         std::cerr << "[DML] Keeping the previous working detector session." << std::endl;
@@ -576,7 +738,7 @@ void DirectMLDetector::preprocessFrameToTensor(const cv::Mat& frame, float* dst,
             grayResized = frame;
         }
 
-        grayResized.convertTo(preprocessGrayFloatBuffer, CV_32F, 1.0f / 255.0f);
+        grayResized.convertTo(preprocessGrayFloatBuffer, CV_32F, model_profile.inputScale);
         preprocessGrayFloatBuffer.copyTo(rgbPlanes[0]);
         preprocessGrayFloatBuffer.copyTo(rgbPlanes[1]);
         preprocessGrayFloatBuffer.copyTo(rgbPlanes[2]);
@@ -609,14 +771,14 @@ void DirectMLDetector::preprocessFrameToTensor(const cv::Mat& frame, float* dst,
         resizedBgr = bgrFrame;
     }
 
-    resizedBgr.convertTo(preprocessFloatBuffer, CV_32FC3, 1.0f / 255.0f);
+    resizedBgr.convertTo(preprocessFloatBuffer, CV_32FC3, model_profile.inputScale);
 
     cv::Mat bgrToRgbPlanes[3] = {
         rgbPlanes[2],
         rgbPlanes[1],
         rgbPlanes[0]
     };
-    cv::split(preprocessFloatBuffer, bgrToRgbPlanes);
+    cv::split(preprocessFloatBuffer, model_profile.colorOrder == "rgb" ? bgrToRgbPlanes : rgbPlanes);
 }
 
 std::vector<Detection> DirectMLDetector::detect(const cv::Mat& input_frame)
@@ -638,10 +800,13 @@ std::vector<std::vector<Detection>> DirectMLDetector::detectBatch(const std::vec
 
     const int model_h = model_input_h;
     const int model_w = model_input_w;
-    const bool useFixed = config.fixed_input_size && model_h > 0 && model_w > 0;
 
-    const int target_h = useFixed ? model_h : config.detection_resolution;
-    const int target_w = useFixed ? model_w : config.detection_resolution;
+    const int target_h = model_h > 0 ? model_h : config.detection_resolution;
+    const int target_w = model_w > 0 ? model_w : config.detection_resolution;
+    if (target_h <= 0 || target_w <= 0 || target_h > 8192 || target_w > 8192 ||
+        (input_shape[0] > 0 && static_cast<size_t>(input_shape[0]) != batch_size) ||
+        ((model_h <= 0 || model_w <= 0) && (target_h % model_profile.stride || target_w % model_profile.stride)))
+        throw std::runtime_error("Input batch/size does not match model contract; dynamic size must be stride aligned");
 
     auto t0 = std::chrono::steady_clock::now();
     const size_t frameTensorSize =
@@ -721,10 +886,10 @@ std::vector<std::vector<Detection>> DirectMLDetector::detectBatch(const std::vec
                 max_detections,
                 &nmsTimeTmp);
 
-            if (useFixed && (target_w != config.detection_resolution || target_h != config.detection_resolution))
+            if (target_w != frames[b].cols || target_h != frames[b].rows)
             {
-                float scaleX = static_cast<float>(config.detection_resolution) / target_w;
-                float scaleY = static_cast<float>(config.detection_resolution) / target_h;
+                float scaleX = static_cast<float>(frames[b].cols) / target_w;
+                float scaleY = static_cast<float>(frames[b].rows) / target_h;
                 for (auto& d : detections)
                 {
                     d.box.x = static_cast<int>(d.box.x * scaleX);
@@ -746,10 +911,40 @@ std::vector<std::vector<Detection>> DirectMLDetector::detectBatch(const std::vec
         return batchDetections;
     }
 
-    float* outData = output_tensors.front().GetTensorMutableData<float>();
-    Ort::TensorTypeAndShapeInfo outInfo = output_tensors.front().GetTensorTypeAndShapeInfo();
-    std::vector<int64_t> outShape = outInfo.GetShape(); // [B, rows, cols]
-    if (outShape.size() < 3)
+    std::vector<float> rawDecoded;
+    std::vector<int64_t> outShape;
+    const float* outData = nullptr;
+    if (model_profile.layout == "yolov5_raw")
+    {
+        size_t rowsPerBatch = 0;
+        for (size_t b = 0; b < batch_size; ++b)
+        {
+            size_t batchRows = 0;
+            for (int index : raw_output_indices)
+            {
+                const auto shape = output_tensors[index].GetTensorTypeAndShapeInfo().GetShape();
+                if (shape.size() != 5 || shape[0] != static_cast<int64_t>(batch_size) ||
+                    shape[1] <= 0 || shape[1] > 1024 || shape[2] <= 0 || shape[2] > target_h ||
+                    shape[3] <= 0 || shape[3] > target_w || shape[4] != model_classes + 5)
+                    throw std::runtime_error("Invalid runtime raw YOLOv5 shape");
+                const size_t rows = static_cast<size_t>(shape[1]) * shape[2] * shape[3];
+                auto decoded = decodeV5Head(output_tensors[index].GetTensorData<float>() + b * rows * shape[4],
+                    static_cast<int>(shape[1]), static_cast<int>(shape[2]), static_cast<int>(shape[3]),
+                    model_classes + 5, target_h, target_w, model_profile.anchors.at(output_names[index]));
+                rawDecoded.insert(rawDecoded.end(), decoded.begin(), decoded.end());
+                batchRows += rows;
+            }
+            rowsPerBatch = batchRows;
+        }
+        outShape = {static_cast<int64_t>(batch_size), static_cast<int64_t>(rowsPerBatch), model_classes + 5};
+        outData = rawDecoded.data();
+    }
+    else
+    {
+        outShape = output_tensors[detection_output_index].GetTensorTypeAndShapeInfo().GetShape();
+        outData = output_tensors[detection_output_index].GetTensorData<float>();
+    }
+    if (outShape.size() != 3 || outShape[0] != static_cast<int64_t>(batch_size))
     {
         std::cerr << "[DirectMLDetector] Unexpected output tensor rank." << std::endl;
         return empty;
@@ -762,20 +957,31 @@ std::vector<std::vector<Detection>> DirectMLDetector::detectBatch(const std::vec
         std::cerr << "[DirectMLDetector] Output tensor dimensions are invalid." << std::endl;
         return empty;
     }
-    const int num_classes = rows - 4;
+    const int num_classes = model_classes;
 
     for (size_t b = 0; b < batch_size; ++b)
     {
-        const float* ptr = outData + b * rows * cols;
+        const float* ptr = outData + b * static_cast<size_t>(rows) * cols;
+        std::vector<float> yoloXDecoded;
+        if (model_profile.layout == "yolox_raw")
+        {
+            yoloXDecoded = decodeYoloX(ptr, rows, cols, target_h, target_w, model_profile.strides);
+            ptr = yoloXDecoded.data();
+        }
         std::vector<Detection> detections;
 
         std::vector<int64_t> shp = { static_cast<int64_t>(rows), static_cast<int64_t>(cols) };
-        detections = postProcessYoloDML(ptr, shp, num_classes, conf_thr, nms_thr, max_detections, &nmsTimeTmp);
+        const int extent = yolo_layout == YoloOutputLayout::FeatureMajor ? rows : cols;
+        if ((yolo_layout == YoloOutputLayout::Xyxy && cols != 6) ||
+            (yolo_layout != YoloOutputLayout::Xyxy && extent != model_classes + (yolo_objectness ? 5 : 4)))
+            throw std::runtime_error("Runtime detection feature dimension changed");
+        detections = postProcessYoloDML(ptr, shp, num_classes, conf_thr, nms_thr, max_detections,
+            &nmsTimeTmp, yolo_layout, yolo_objectness);
 
-        if (useFixed && (target_w != config.detection_resolution || target_h != config.detection_resolution))
+        if (target_w != frames[b].cols || target_h != frames[b].rows)
         {
-            float scaleX = static_cast<float>(config.detection_resolution) / target_w;
-            float scaleY = static_cast<float>(config.detection_resolution) / target_h;
+            float scaleX = static_cast<float>(frames[b].cols) / target_w;
+            float scaleY = static_cast<float>(frames[b].rows) / target_h;
             for (auto& d : detections)
             {
                 d.box.x = static_cast<int>(d.box.x * scaleX);
@@ -800,32 +1006,65 @@ std::vector<std::vector<Detection>> DirectMLDetector::detectBatch(const std::vec
 
 int DirectMLDetector::getNumberOfClasses()
 {
-    if (!isReady())
-        return -1;
+    return isReady() ? model_classes : -1;
+}
 
-    if (sunpoint_raw_output)
-        return 2;
-
-    Ort::TypeInfo output_type_info = session.GetOutputTypeInfo(0);
-    auto tensor_info = output_type_info.GetTensorTypeAndShapeInfo();
-    std::vector<int64_t> output_shape = tensor_info.GetShape();
-
-    if (output_shape.size() == 3)
+int RunDmlModelChecks()
+{
+    int passed = 0;
+    int failed = 0;
+    config.detection_resolution = 320;
+    config.verbose = true;
+    try
     {
-        int channels = 0;
-        if (!tryInt64ToInt(output_shape[1], &channels))
+        for (const auto& entry : std::filesystem::directory_iterator(L"models"))
         {
-            std::cerr << "[DirectMLDetector] Output tensor channel dimension is invalid." << std::endl;
-            return -1;
+            if (!entry.is_regular_file() || entry.path().extension() != L".onnx") continue;
+            const auto name = entry.path().filename().u8string();
+            try
+            {
+                DirectMLDetector detector(entry.path().u8string());
+                if (!detector.isReady()) throw std::runtime_error("model initialization failed; see contract error above");
+                if (!detector.usesDirectML()) throw std::runtime_error("model initialized only with CPU fallback");
+                const auto modelInfo = detector.getModelInfo();
+                if (modelInfo.modelName != name || modelInfo.classes != detector.getNumberOfClasses() ||
+                    modelInfo.input.empty() || modelInfo.outputs.empty())
+                    throw std::runtime_error("Overlay model information does not match the active detector");
+                std::cout << "[MODEL-INFO] " << name << " input=" << modelInfo.input
+                    << " names_source=" << modelInfo.namesSource << std::endl;
+                for (const auto& item : modelInfo.classNames)
+                    std::cout << "[MODEL-CLASS] " << item.first << "=" << item.second << std::endl;
+                for (int size : {320, 640})
+                {
+                    config.detection_resolution = size;
+                    cv::Mat frame(size, size, CV_8UC3);
+                    cv::RNG rng(42);
+                    rng.fill(frame, cv::RNG::UNIFORM, 0, 256);
+                    for (const auto& detection : detector.detect(frame))
+                    {
+                        if (!std::isfinite(detection.confidence) || detection.classId < 0 ||
+                            detection.classId >= detector.getNumberOfClasses() ||
+                            detection.box.width <= 0 || detection.box.height <= 0)
+                            throw std::runtime_error("invalid decoded detection");
+                    }
+                }
+                ++passed;
+                std::cout << "[MODEL-CHECK] PASS " << name << " classes=" << detector.getNumberOfClasses() << std::endl;
+            }
+            catch (const std::exception& error)
+            {
+                ++failed;
+                std::cerr << "[MODEL-CHECK] FAIL " << name << ": " << error.what() << std::endl;
+            }
         }
-        int num_classes = channels - 4;
-        return num_classes;
     }
-    else
+    catch (const std::exception& error)
     {
-        std::cerr << "[DirectMLDetector] Unexpected output tensor shape." << std::endl;
-        return -1;
+        std::cerr << "[MODEL-CHECK] " << error.what() << std::endl;
+        return 1;
     }
+    std::cout << "[MODEL-CHECK] passed=" << passed << " failed=" << failed << std::endl;
+    return failed || !passed ? 1 : 0;
 }
 
 void DirectMLDetector::processFrame(

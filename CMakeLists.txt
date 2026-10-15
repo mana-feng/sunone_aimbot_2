@@ -378,6 +378,7 @@ target_compile_definitions(ai PRIVATE
 
 if(MSVC)
     target_compile_options(ai PRIVATE
+        $<$<COMPILE_LANGUAGE:CXX>:/utf-8>
         $<$<COMPILE_LANGUAGE:CXX>:/W3>
         $<$<COMPILE_LANGUAGE:CXX>:/sdl>
         $<$<COMPILE_LANGUAGE:CXX>:/permissive->

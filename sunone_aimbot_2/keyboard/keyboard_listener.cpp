@@ -49,6 +49,7 @@ struct KeyboardConfigSnapshot
     bool autoAim = false;
     bool enableArrowsSettings = false;
     std::vector<std::string> buttonTargeting;
+    std::vector<std::string> buttonTargetingFriendly;
     std::vector<std::string> buttonShoot;
     std::vector<std::string> buttonZoom;
     std::vector<std::string> buttonExit;
@@ -64,6 +65,7 @@ KeyboardConfigSnapshot SnapshotKeyboardConfig()
     snapshot.autoAim = config.auto_aim;
     snapshot.enableArrowsSettings = config.enable_arrows_settings;
     snapshot.buttonTargeting = config.button_targeting;
+    snapshot.buttonTargetingFriendly = config.button_targeting_friendly;
     snapshot.buttonShoot = config.button_shoot;
     snapshot.buttonZoom = config.button_zoom;
     snapshot.buttonExit = config.button_exit;
@@ -152,15 +154,14 @@ void keyboardListener()
     {
         KeyboardConfigSnapshot cfg = SnapshotKeyboardConfig();
 
-        // Aiming
-        if (!cfg.autoAim)
+        // Publish team and activation together; device callbacks only publish raw button state.
+        const bool enemyHeld = isAnyKeyPressedInternal(cfg.buttonTargeting);
+        const bool friendlyHeld = isAnyKeyPressedInternal(cfg.buttonTargetingFriendly);
+        const auto team = resolveAimTeam(enemyHeld, friendlyHeld, cfg.autoAim, isAimingActiveFromDevices());
         {
-            aiming = isAnyKeyPressedInternal(cfg.buttonTargeting) ||
-                isAimingActiveFromDevices();
-        }
-        else
-        {
-            aiming = true;
+            std::lock_guard<std::mutex> lock(configMutex);
+            config.setAimTeam(team);
+            aiming.store(team != AimTeam::None);
         }
 
         // Shooting

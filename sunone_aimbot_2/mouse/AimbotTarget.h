@@ -1,6 +1,7 @@
 #ifndef AIMBOTTARGET_H
 #define AIMBOTTARGET_H
 
+#include "detector/class_roles.h"
 #include <opencv2/opencv.hpp>
 #include <vector>
 #include <chrono>
@@ -95,6 +96,8 @@ private:
     int allowedMissedFrames(const TrackState& t) const;
     void pruneDeadTracks();
 
+    TargetClassPolicy activePolicy_;
+    bool activeDisableHeadshot_ = false;
     std::vector<TrackState> tracks_;
     int nextId_ = 1;
     int lockedTrackId_ = -1;

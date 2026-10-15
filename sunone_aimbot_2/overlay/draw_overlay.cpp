@@ -4,6 +4,7 @@
 #include <Windows.h>
 #include <algorithm>
 
+#include "overlay/i18n_imgui.h"
 #include "imgui/imgui.h"
 #include "sunone_aimbot_2.h"
 #include "overlay.h"
@@ -19,7 +20,7 @@ void draw_overlay()
         {
             const auto row = OverlayUI::BeginSettingRow("Overlay Opacity");
             int prev_opacity = config.overlay_opacity;
-            if (ImGui::SliderInt("##overlay_opacity_slider", &config.overlay_opacity, kMinReadableOpacity, 255))
+            if (OverlayI18n::SliderInt("##overlay_opacity_slider", &config.overlay_opacity, kMinReadableOpacity, 255))
             {
                 if (config.overlay_opacity < kMinReadableOpacity) config.overlay_opacity = kMinReadableOpacity;
                 if (config.overlay_opacity > 255) config.overlay_opacity = 255;
@@ -38,7 +39,7 @@ void draw_overlay()
 
         {
             const auto row = OverlayUI::BeginSettingRow("UI Fine Scale");
-            if (ImGui::SliderFloat("##overlay_ui_scale_slider", &ui_scale, 0.85f, 1.35f, "%.2f"))
+            if (OverlayI18n::SliderFloat("##overlay_ui_scale_slider", &ui_scale, 0.85f, 1.35f, "%.2f"))
             {
                 config.overlay_ui_scale = ui_scale;
                 OverlayConfig_MarkDirty();
@@ -48,7 +49,7 @@ void draw_overlay()
 
         {
             const auto row = OverlayUI::BeginSettingRow("Hide Overlays From Recording");
-            if (ImGui::Checkbox("##hide_overlay_from_recording", &config.overlay_exclude_from_capture))
+            if (OverlayI18n::Checkbox("##hide_overlay_from_recording", &config.overlay_exclude_from_capture))
             {
                 Overlay_ApplyCaptureExclusion();
                 OverlayConfig_MarkDirty();

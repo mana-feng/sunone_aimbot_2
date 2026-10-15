@@ -154,7 +154,7 @@ bool HasExtensionCaseInsensitive(const std::string& path, const char* ext)
     if (!ext || !*ext)
         return false;
 
-    const std::string current = ToLowerAscii(std::filesystem::path(path).extension().string());
+    const std::string current = ToLowerAscii(std::filesystem::u8path(path).extension().u8string());
     const std::string expected = ToLowerAscii(ext);
     return current == expected;
 }
@@ -165,7 +165,7 @@ static std::vector<std::string> GetModelFilesByExtInDir(const std::string& dir, 
     std::vector<std::string> files;
 
     std::error_code ec;
-    std::filesystem::directory_iterator it(dir, ec);
+    std::filesystem::directory_iterator it(std::filesystem::u8path(dir), ec);
     if (ec)
     {
         return files;
@@ -184,7 +184,7 @@ static std::vector<std::string> GetModelFilesByExtInDir(const std::string& dir, 
             [&ext](const std::string& e) { return ext == e; });
         if (match)
         {
-            files.push_back(entry.path().filename().string());
+            files.push_back(entry.path().filename().u8string());
         }
     }
 
@@ -937,7 +937,8 @@ void welcome_message()
 {
     std::cout <<
     "\n\nAimbot is started!\n" <<
-    config.joinStrings(config.button_targeting) << " -> Targeting\n" <<
+    config.joinStrings(config.button_targeting) << " -> Enemy targeting\n" <<
+    config.joinStrings(config.button_targeting_friendly) << " -> Friendly targeting\n" <<
     config.joinStrings(config.button_exit) << " -> Exit\n" <<
     config.joinStrings(config.button_pause) << " -> Pause Aiming\n" <<
     config.joinStrings(config.button_reload_config) << " -> Reload Config\n" <<
